@@ -1,0 +1,1539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinguaForge — Vocab Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f14;
+  --surface: #161923;
+  --surface2: #1e2433;
+  --border: #2a3047;
+  --accent: #5b7cff;
+  --accent2: #ff6b6b;
+  --accent3: #2ecc88;
+  --accent4: #f5c842;
+  --text: #e8eaf2;
+  --text2: #8b91aa;
+  --text3: #555e7a;
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ─── Layout ─── */
+#app { display: flex; height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 0;
+  flex-shrink: 0;
+}
+
+.logo {
+  padding: 0 24px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.logo h1 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--accent), #a78bff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.logo span { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 24px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s;
+  border-left: 3px solid transparent;
+  margin: 1px 0;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(91,124,255,0.1); color: var(--accent); border-left-color: var(--accent); }
+.nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
+
+.nav-section-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text3);
+  padding: 16px 24px 6px;
+  font-family: 'DM Mono', monospace;
+}
+
+.main { flex: 1; overflow-y: auto; }
+
+/* ─── Pages ─── */
+.page { display: none; padding: 40px; max-width: 960px; margin: 0 auto; }
+.page.active { display: block; }
+
+.page-header { margin-bottom: 32px; }
+.page-header h2 {
+  font-family: 'Syne', sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+}
+.page-header p { color: var(--text2); margin-top: 6px; font-size: 14px; }
+
+/* ─── Stats cards ─── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 36px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--c, var(--accent));
+}
+.stat-card .val {
+  font-family: 'Syne', sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--c, var(--accent));
+  line-height: 1;
+}
+.stat-card .lbl { font-size: 12px; color: var(--text2); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.8px; font-family: 'DM Mono', monospace; }
+
+/* ─── Train section ─── */
+.train-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.mode-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+.mode-card:hover, .mode-card.selected {
+  border-color: var(--accent);
+  background: rgba(91,124,255,0.08);
+}
+.mode-card .emoji { font-size: 36px; margin-bottom: 12px; }
+.mode-card h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
+.mode-card p { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+/* ─── Flashcard ─── */
+#flashcard-area { display: none; }
+.flashcard-wrap { perspective: 1000px; width: 100%; max-width: 500px; margin: 0 auto; }
+.flashcard {
+  width: 100%;
+  height: 260px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(.4,0,.2,1);
+  cursor: pointer;
+}
+.flashcard.flipped { transform: rotateY(180deg); }
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  text-align: center;
+}
+.card-face.back { transform: rotateY(180deg); background: var(--surface2); }
+.card-word {
+  font-family: 'Syne', sans-serif;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+.card-lang { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+.card-hint { font-size: 13px; color: var(--text3); margin-top: 12px; }
+.card-translation { font-size: 32px; font-family: 'Syne', sans-serif; font-weight: 700; color: var(--accent3); }
+
+.card-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 24px;
+  display: none;
+}
+.card-controls.visible { display: flex; }
+
+/* ─── Multiple choice ─── */
+.mc-question {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.mc-question .q-word {
+  font-family: 'Syne', sans-serif;
+  font-size: 48px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+.mc-question .q-lang { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; font-family: 'DM Mono', monospace; }
+.mc-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.mc-choice {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  transition: all 0.15s;
+  color: var(--text);
+  text-align: center;
+}
+.mc-choice:hover:not(.disabled) { border-color: var(--accent); background: rgba(91,124,255,0.08); }
+.mc-choice.correct { border-color: var(--accent3); background: rgba(46,204,136,0.12); color: var(--accent3); }
+.mc-choice.wrong { border-color: var(--accent2); background: rgba(255,107,107,0.12); color: var(--accent2); }
+.mc-choice.disabled { cursor: default; }
+
+/* ─── Type mode ─── */
+.type-wrap { max-width: 560px; margin: 0 auto; }
+.type-question {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+.type-input {
+  width: 100%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  font-size: 20px;
+  font-family: 'DM Mono', monospace;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+  letter-spacing: 1px;
+}
+.type-input:focus { border-color: var(--accent); }
+.type-input.correct { border-color: var(--accent3); background: rgba(46,204,136,0.08); }
+.type-input.wrong { border-color: var(--accent2); background: rgba(255,107,107,0.08); }
+.type-feedback { margin-top: 12px; font-size: 14px; min-height: 20px; text-align: center; }
+
+/* ─── Progress bar ─── */
+.session-progress {
+  background: var(--surface2);
+  border-radius: 99px;
+  height: 6px;
+  margin-bottom: 32px;
+  overflow: hidden;
+}
+.session-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), #a78bff);
+  border-radius: 99px;
+  transition: width 0.4s;
+}
+
+/* ─── Buttons ─── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  border: none;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: #4a6be8; transform: translateY(-1px); }
+.btn-success { background: var(--accent3); color: #fff; }
+.btn-danger { background: var(--accent2); color: #fff; }
+.btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover { border-color: var(--text2); }
+.btn-sm { padding: 8px 16px; font-size: 13px; }
+
+/* ─── Vocab list ─── */
+.vocab-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-btn {
+  padding: 7px 16px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(91,124,255,0.08); }
+
+.vocab-table { width: 100%; border-collapse: collapse; }
+.vocab-table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text3);
+  font-family: 'DM Mono', monospace;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+.vocab-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(42,48,71,0.5);
+  font-size: 14px;
+}
+.vocab-table tr:hover td { background: var(--surface2); }
+.word-cell { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 16px; }
+.trans-cell { color: var(--text2); }
+.accuracy-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.acc-track {
+  width: 60px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.acc-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent3);
+}
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+}
+.badge-new { background: rgba(91,124,255,0.15); color: var(--accent); }
+.badge-strong { background: rgba(46,204,136,0.15); color: var(--accent3); }
+.badge-weak { background: rgba(255,107,107,0.15); color: var(--accent2); }
+.badge-learning { background: rgba(245,200,66,0.15); color: var(--accent4); }
+
+/* ─── Import panel ─── */
+.import-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 20px;
+}
+.import-section h3 { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 6px; }
+.import-section p { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+.import-section .vocab-filters { margin-bottom: 16px; }
+
+.vocab-table input.vocab-inline-inp {
+  width: 100%;
+  min-width: 64px;
+  max-width: 200px;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+}
+.manage-row-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+@media (max-width: 700px) {
+  .vocab-table input.vocab-inline-inp { max-width: none; }
+}
+
+.form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-family: 'DM Mono', monospace; }
+input[type=text], select, textarea {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+input[type=text]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+select option { background: var(--surface2); }
+textarea { resize: vertical; min-height: 100px; width: 100%; }
+
+/* ─── Toast ─── */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 20px;
+  font-size: 14px;
+  z-index: 9999;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s;
+  pointer-events: none;
+  max-width: 320px;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { border-color: var(--accent3); color: var(--accent3); }
+.toast.error { border-color: var(--accent2); color: var(--accent2); }
+.toast.info { border-color: var(--accent); color: var(--accent); }
+
+/* ─── Session complete ─── */
+.session-complete {
+  text-align: center;
+  padding: 60px 20px;
+  display: none;
+}
+.session-complete.visible { display: block; }
+.session-complete .big-emoji { font-size: 80px; margin-bottom: 20px; }
+.session-complete h2 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 32px; margin-bottom: 8px; }
+.session-complete .score-row { display: flex; gap: 24px; justify-content: center; margin: 24px 0; }
+.session-complete .score-item { text-align: center; }
+.session-complete .score-num { font-family: 'Syne', sans-serif; font-size: 40px; font-weight: 800; }
+.session-complete .score-lbl { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.8px; font-family: 'DM Mono', monospace; }
+
+/* ─── Mobile menu (sidebar hidden off-canvas; opened via hamburger) ─── */
+.nav-backdrop {
+  display: none;
+}
+.mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  z-index: 250;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+}
+body.nav-open { overflow: hidden; }
+
+/* ─── Responsive ─── */
+@media (max-width: 700px) {
+  .mobile-nav-toggle { display: flex; }
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 190;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .nav-backdrop.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    min-height: 100dvh;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    padding-top: max(12px, env(safe-area-inset-top));
+    box-shadow: none;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+    box-shadow: 8px 0 40px rgba(0, 0, 0, 0.35);
+  }
+  .main {
+    width: 100%;
+    padding-top: 56px;
+  }
+  #app { min-height: 100dvh; height: auto; }
+  .page { padding: 20px 16px; }
+  .mc-choices { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ─── Animations ─── */
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.fade-in { animation: fadeIn 0.3s ease forwards; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+.empty-state h3 { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+
+.streak-banner {
+  background: linear-gradient(135deg, rgba(91,124,255,0.15), rgba(167,139,255,0.1));
+  border: 1px solid rgba(91,124,255,0.3);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.lang-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: 'DM Mono', monospace;
+}
+
+.dashboard-import-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-bottom: 24px;
+  padding: 14px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.dashboard-import-bar .hint {
+  font-size: 13px;
+  color: var(--text2);
+}
+</style>
+</head>
+<body>
+<button type="button" class="mobile-nav-toggle" id="mobile-nav-toggle" onclick="toggleMobileNav()" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar-nav">☰</button>
+<div class="nav-backdrop" id="nav-backdrop" onclick="closeMobileNav()" aria-hidden="true"></div>
+<div id="app">
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar-nav" aria-label="Main navigation">
+    <div class="logo">
+      <h1>LinguaForge</h1>
+      <span>Vocab Trainer</span>
+    </div>
+    <div class="nav-item active" data-page="dashboard" onclick="nav('dashboard')">
+      <span class="icon">⚡</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="train" onclick="nav('train')">
+      <span class="icon">🎯</span> Train
+    </div>
+    <div class="nav-section-label">Library</div>
+    <div class="nav-item" data-page="vocab" onclick="nav('vocab')">
+      <span class="icon">📚</span> All Words
+    </div>
+    <div class="nav-item" data-page="weak" onclick="nav('weak')">
+      <span class="icon">🔥</span> Needs Work
+    </div>
+    <div class="nav-item" data-page="strong" onclick="nav('strong')">
+      <span class="icon">⭐</span> Mastered
+    </div>
+    <div class="nav-section-label">Setup</div>
+    <div class="nav-item" data-page="import" onclick="nav('import')">
+      <span class="icon">⬆</span> Import
+    </div>
+  </nav>
+
+  <div class="main">
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <h2>Dashboard</h2>
+        <p>Your vocabulary overview at a glance</p>
+      </div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card" style="--c: var(--accent)">
+          <div class="val" id="stat-total">–</div>
+          <div class="lbl">Total Words</div>
+        </div>
+        <div class="stat-card" style="--c: var(--accent4)">
+          <div class="val" id="stat-due">–</div>
+          <div class="lbl">Due Today</div>
+        </div>
+        <div class="stat-card" style="--c: var(--accent3)">
+          <div class="val" id="stat-mastered">–</div>
+          <div class="lbl">Mastered</div>
+        </div>
+        <div class="stat-card" style="--c: var(--accent2)">
+          <div class="val" id="stat-struggling">–</div>
+          <div class="lbl">Struggling</div>
+        </div>
+        <div class="stat-card" style="--c: #a78bff">
+          <div class="val" id="stat-today">–</div>
+          <div class="lbl">Reviewed Today</div>
+        </div>
+      </div>
+
+      <div class="dashboard-import-bar">
+        <button type="button" class="btn btn-primary" onclick="nav('vocab')">📚 All words</button>
+        <button type="button" class="btn btn-ghost" onclick="nav('import')">⬆ Import</button>
+        <span class="hint">Edit your library or add words from Duolingo, a list, or manually</span>
+      </div>
+
+      <div id="dashboard-cta"></div>
+
+      <div style="margin-top: 32px;">
+        <h3 style="font-family:'Syne',sans-serif;font-weight:700;margin-bottom:16px;">🔥 Words Needing Attention</h3>
+        <div id="weak-preview"></div>
+      </div>
+    </div>
+
+    <!-- Train -->
+    <div class="page" id="page-train">
+      <div class="page-header">
+        <h2>Train</h2>
+        <p>Practice your vocabulary with spaced repetition</p>
+      </div>
+
+      <div id="train-setup">
+        <div style="display:flex;gap:12px;margin-bottom:24px;align-items:center;flex-wrap:wrap;">
+          <div class="form-group">
+            <label>Language</label>
+            <select id="train-lang" onchange="loadSession()">
+              <option value="">All languages</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Word Pool</label>
+            <select id="train-pool" onchange="loadSession()">
+              <option value="due">Due for review</option>
+              <option value="weak">Weakest words</option>
+              <option value="all">All words</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Session size</label>
+            <select id="train-size">
+              <option value="10">10 words</option>
+              <option value="20" selected>20 words</option>
+              <option value="40">40 words</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="train-modes">
+          <div class="mode-card selected" data-mode="flashcard" onclick="selectMode(this)">
+            <div class="emoji">🃏</div>
+            <h3>Flashcards</h3>
+            <p>Flip to reveal translation</p>
+          </div>
+          <div class="mode-card" data-mode="multiple" onclick="selectMode(this)">
+            <div class="emoji">🎯</div>
+            <h3>Multiple Choice</h3>
+            <p>Pick the correct translation</p>
+          </div>
+          <div class="mode-card" data-mode="typing" onclick="selectMode(this)">
+            <div class="emoji">⌨️</div>
+            <h3>Type It</h3>
+            <p>Type the translation from memory</p>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="startSession()" style="font-size:16px;padding:14px 32px;">
+          Start Session →
+        </button>
+      </div>
+
+      <!-- Active session -->
+      <div id="train-session" style="display:none;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span id="session-counter" style="font-size:13px;color:var(--text2);font-family:'DM Mono',monospace;"></span>
+          <button class="btn btn-ghost btn-sm" onclick="endSession()">✕ End</button>
+        </div>
+        <div class="session-progress"><div class="session-progress-fill" id="session-bar" style="width:0%"></div></div>
+
+        <!-- Flashcard -->
+        <div id="mode-flashcard">
+          <div class="flashcard-wrap">
+            <div class="flashcard" id="the-card" onclick="flipCard()">
+              <div class="card-face front">
+                <div class="card-lang" id="fc-lang">–</div>
+                <div class="card-word" id="fc-word">–</div>
+                <div class="card-hint">Click to flip</div>
+              </div>
+              <div class="card-face back">
+                <div class="card-lang">Translation</div>
+                <div class="card-translation" id="fc-trans">–</div>
+              </div>
+            </div>
+          </div>
+          <div class="card-controls" id="card-controls">
+            <button class="btn btn-danger" onclick="answerCard(false)">✕ Missed it</button>
+            <button class="btn btn-success" onclick="answerCard(true)">✓ Got it!</button>
+          </div>
+        </div>
+
+        <!-- Multiple choice -->
+        <div id="mode-multiple" style="display:none;">
+          <div class="mc-question">
+            <div class="mc-question q-lang" id="mc-lang">–</div>
+            <div class="mc-question q-word" id="mc-word">–</div>
+          </div>
+          <div class="mc-choices" id="mc-choices"></div>
+        </div>
+
+        <!-- Typing -->
+        <div id="mode-typing" style="display:none;">
+          <div class="type-wrap">
+            <div class="type-question">
+              <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:'DM Mono',monospace" id="ty-lang">–</div>
+              <div style="font-family:'Syne',sans-serif;font-size:48px;font-weight:800;letter-spacing:-1px;" id="ty-word">–</div>
+            </div>
+            <input class="type-input" id="ty-input" type="text" placeholder="Type the translation…" onkeydown="handleTypeKey(event)">
+            <div class="type-feedback" id="ty-feedback"></div>
+            <div style="display:flex;gap:10px;margin-top:16px;justify-content:center;">
+              <button class="btn btn-ghost" id="ty-skip-btn" onclick="skipTyping()">Skip</button>
+              <button class="btn btn-primary" id="ty-check-btn" onclick="checkTyping()">Check →</button>
+              <button class="btn btn-success" id="ty-next-btn" style="display:none" onclick="nextWord()">Next →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Session complete -->
+      <div class="session-complete" id="session-complete">
+        <div class="big-emoji" id="sc-emoji">🎉</div>
+        <h2 id="sc-title">Session Complete!</h2>
+        <p id="sc-subtitle" style="color:var(--text2);">Great work today</p>
+        <div class="score-row">
+          <div class="score-item">
+            <div class="score-num" style="color:var(--accent3)" id="sc-correct">0</div>
+            <div class="score-lbl">Correct</div>
+          </div>
+          <div class="score-item">
+            <div class="score-num" style="color:var(--accent2)" id="sc-wrong">0</div>
+            <div class="score-lbl">Missed</div>
+          </div>
+          <div class="score-item">
+            <div class="score-num" style="color:var(--accent)" id="sc-pct">–</div>
+            <div class="score-lbl">Accuracy</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button class="btn btn-primary" onclick="restartSession()">Train Again</button>
+          <button class="btn btn-ghost" onclick="nav('dashboard')">Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weak words -->
+    <div class="page" id="page-weak">
+      <div class="page-header">
+        <h2>🔥 Needs Work</h2>
+        <p>Words you're struggling with — focus your training here</p>
+      </div>
+      <div id="weak-list-wrap"></div>
+      <div style="margin-top:20px;">
+        <button class="btn btn-primary" onclick="trainWeak()">Train Weak Words →</button>
+      </div>
+    </div>
+
+    <!-- Strong words -->
+    <div class="page" id="page-strong">
+      <div class="page-header">
+        <h2>⭐ Mastered</h2>
+        <p>Words you've learned well</p>
+      </div>
+      <div id="strong-list-wrap"></div>
+    </div>
+
+    <!-- All Words (edit & delete) -->
+    <div class="page" id="page-vocab">
+      <div class="page-header">
+        <h2>All Words</h2>
+        <p>Edit translations and language codes — training progress stays on each word when you save</p>
+      </div>
+      <div class="import-section">
+        <div class="vocab-filters" id="manage-vocab-filters"></div>
+        <div id="manage-vocab-list-wrap"></div>
+      </div>
+    </div>
+
+    <!-- Import -->
+    <div class="page" id="page-import">
+      <div class="page-header">
+        <h2>Import Vocabulary</h2>
+        <p>Add words from Duolingo, a list, or one at a time</p>
+      </div>
+
+      <div class="import-section">
+        <h3>🦉 Sync from Duolingo</h3>
+        <p>Authenticate with your Duolingo account to fetch your full vocabulary list. Your credentials are sent directly to Duolingo and <strong>never stored</strong> on disk.</p>
+
+        <!-- Auth method tabs -->
+        <div style="display:flex;gap:0;margin-bottom:20px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;width:fit-content;">
+          <button class="auth-tab active" id="tab-pass" onclick="switchAuthTab('pass')"
+            style="padding:8px 20px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;">
+            🔑 Password
+          </button>
+          <button class="auth-tab" id="tab-jwt" onclick="switchAuthTab('jwt')"
+            style="padding:8px 20px;background:transparent;color:var(--text2);border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;">
+            🔐 JWT Token
+          </button>
+        </div>
+
+        <!-- Password auth -->
+        <div id="auth-pass">
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group" style="flex:1">
+              <label>Duolingo Username</label>
+              <input type="text" id="duo-username" placeholder="your_username" autocomplete="username">
+            </div>
+            <div class="form-group" style="flex:1">
+              <label>Password</label>
+              <input type="password" id="duo-password" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <button class="btn btn-primary" onclick="syncDuolingo()" style="align-self:flex-end">Sync →</button>
+          </div>
+          <p style="font-size:12px;color:var(--text3);">🔒 Password is sent directly to Duolingo's login endpoint over HTTPS and is never written to disk or logs.</p>
+        </div>
+
+        <!-- JWT auth -->
+        <div id="auth-jwt" style="display:none;">
+          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+            Get your JWT by opening <strong>duolingo.com</strong> in a browser, logging in, then opening DevTools → Application → Cookies → <code style="font-family:'DM Mono',monospace;color:var(--accent)">jwt_token</code>. Copy its value here.
+          </p>
+          <div class="form-row" style="margin-bottom:10px;">
+            <div class="form-group" style="flex:1">
+              <label>Duolingo Username</label>
+              <input type="text" id="duo-username-jwt" placeholder="your_username">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label>JWT Token</label>
+            <input type="text" id="duo-jwt" placeholder="eyJhbGciOi..." style="width:100%;font-family:'DM Mono',monospace;font-size:12px;">
+          </div>
+          <button class="btn btn-primary" onclick="syncDuolingoJWT()">Sync with JWT →</button>
+        </div>
+
+        <div id="duo-result" style="margin-top:16px;font-size:13px;"></div>
+      </div>
+
+      <div class="import-section">
+        <h3>📋 Paste Word List</h3>
+        <p>One pair per line, format: <code style="font-family:'DM Mono',monospace;color:var(--accent)">word = translation</code> or <code style="font-family:'DM Mono',monospace;color:var(--accent)">word,translation</code></p>
+        <div class="form-row" style="margin-bottom:12px;">
+          <div class="form-group">
+            <label>Language (target)</label>
+            <input type="text" id="paste-lang" placeholder="e.g. es, fr, de" style="width:120px">
+          </div>
+          <div class="form-group" style="flex:1">
+            <label>From language</label>
+            <input type="text" id="paste-from" placeholder="e.g. en" style="width:120px" value="en">
+          </div>
+        </div>
+        <textarea id="paste-area" placeholder="hola = hello&#10;gracias = thank you&#10;buenas noches = good night"></textarea>
+        <div style="margin-top:12px;">
+          <button class="btn btn-primary" onclick="importPasted()">Import Words</button>
+        </div>
+      </div>
+
+      <div class="import-section">
+        <h3>➕ Add Single Word</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Word</label>
+            <input type="text" id="single-word" placeholder="hola">
+          </div>
+          <div class="form-group">
+            <label>Translation</label>
+            <input type="text" id="single-trans" placeholder="hello">
+          </div>
+          <div class="form-group">
+            <label>Language</label>
+            <input type="text" id="single-lang" placeholder="es" style="width:80px">
+          </div>
+          <button class="btn btn-primary" onclick="addSingle()">Add</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .main -->
+</div><!-- #app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '';  // same-origin
+let sessionWords = [];
+let sessionIdx = 0;
+let sessionCorrect = 0;
+let sessionWrong = 0;
+let currentMode = 'flashcard';
+let cardFlipped = false;
+let mcAnswered = false;
+let manageVocabLang = '';
+
+// ─── Navigation ──────────────────────────────────────────────────────────────
+function closeMobileNav() {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('visible');
+  const btn = document.getElementById('mobile-nav-toggle');
+  if (btn) {
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-label', 'Open menu');
+    btn.textContent = '☰';
+  }
+  document.body.classList.remove('nav-open');
+}
+
+function toggleMobileNav() {
+  const side = document.querySelector('.sidebar');
+  const back = document.getElementById('nav-backdrop');
+  const btn = document.getElementById('mobile-nav-toggle');
+  if (!side || !back || !btn) return;
+  const open = !side.classList.contains('open');
+  side.classList.toggle('open', open);
+  back.classList.toggle('visible', open);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  btn.textContent = open ? '✕' : '☰';
+  document.body.classList.toggle('nav-open', open);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeMobileNav();
+});
+
+function nav(page) {
+  closeMobileNav();
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'vocab') loadManageVocabList(manageVocabLang);
+  if (page === 'weak') loadWeakList();
+  if (page === 'strong') loadStrongList();
+  if (page === 'train') loadTrainLangs();
+}
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+async function api(path, opts = {}) {
+  const r = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!r.ok) {
+    const err = await r.json().catch(() => ({ detail: r.statusText }));
+    throw new Error(err.detail || r.statusText);
+  }
+  return r.json();
+}
+
+// ─── Toast ───────────────────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  try {
+    const stats = await api('/api/stats/overview');
+    document.getElementById('stat-total').textContent = stats.total;
+    document.getElementById('stat-due').textContent = stats.due;
+    document.getElementById('stat-mastered').textContent = stats.mastered;
+    document.getElementById('stat-struggling').textContent = stats.struggling;
+    document.getElementById('stat-today').textContent = stats.reviewed_today;
+
+    const cta = document.getElementById('dashboard-cta');
+    if (stats.total === 0) {
+      cta.innerHTML = `<div class="streak-banner">👋 Welcome! Use <a onclick="nav('import')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Import</a> to add words, or <a onclick="nav('vocab')" style="color:var(--accent);cursor:pointer;text-decoration:underline">All words</a> to browse and edit.</div>`;
+    } else if (stats.due > 0) {
+      cta.innerHTML = `<div class="streak-banner">📅 You have <strong style="color:var(--accent4)">${stats.due} words</strong> due for review today! <a onclick="nav('train')" style="color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:8px">Start training →</a></div>`;
+    } else {
+      cta.innerHTML = `<div class="streak-banner">✅ All caught up for today! Come back tomorrow for your next review session.</div>`;
+    }
+
+    // Weak preview
+    const weak = await api('/api/vocab/weak?limit=5');
+    const wp = document.getElementById('weak-preview');
+    if (weak.length === 0) {
+      wp.innerHTML = `<p style="color:var(--text2);font-size:14px;">No struggling words yet — keep training!</p>`;
+    } else {
+      wp.innerHTML = renderMiniTable(weak);
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function renderMiniTable(words) {
+  if (!words.length) return '<p style="color:var(--text2);font-size:14px">None yet.</p>';
+  return `<table class="vocab-table"><thead><tr>
+    <th>Word</th><th>Translation</th><th>Accuracy</th><th>Lang</th>
+  </tr></thead><tbody>` +
+  words.map(w => {
+    const total = (w.correct_count||0) + (w.wrong_count||0);
+    const acc = total > 0 ? Math.round((w.correct_count||0) / total * 100) : null;
+    const accColor = acc === null ? 'var(--text3)' : acc >= 70 ? 'var(--accent3)' : acc >= 40 ? 'var(--accent4)' : 'var(--accent2)';
+    return `<tr>
+      <td class="word-cell">${w.word}</td>
+      <td class="trans-cell">${w.translation || '<em style="color:var(--text3)">–</em>'}</td>
+      <td><div class="accuracy-bar">
+        <div class="acc-track"><div class="acc-fill" style="width:${acc||0}%;background:${accColor}"></div></div>
+        <span style="font-size:12px;color:${accColor};font-family:'DM Mono',monospace">${acc !== null ? acc+'%' : '–'}</span>
+      </div></td>
+      <td><span class="lang-pill">${w.language_to}</span></td>
+    </tr>`;
+  }).join('') + '</tbody></table>';
+}
+
+// ─── Vocabulary (manage + import page) ───────────────────────────────────────
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escAttr(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function refreshManageVocabIfVisible() {
+  const p = document.getElementById('page-vocab');
+  if (p && p.classList.contains('active')) loadManageVocabList(manageVocabLang);
+}
+
+async function loadManageVocabList(lang) {
+  manageVocabLang = typeof lang === 'string' ? lang : '';
+  const filters = document.getElementById('manage-vocab-filters');
+  const wrap = document.getElementById('manage-vocab-list-wrap');
+  if (!filters || !wrap) return;
+  try {
+    const url = manageVocabLang ? `/api/vocab?language=${encodeURIComponent(manageVocabLang)}` : '/api/vocab';
+    const [words, langs] = await Promise.all([api(url), api('/api/vocab/languages')]);
+
+    filters.innerHTML = `<button class="filter-btn ${!manageVocabLang ? 'active' : ''}" onclick="loadManageVocabList('')">All</button>` +
+      langs.map(l => `<button class="filter-btn ${manageVocabLang === l.language_to ? 'active' : ''}" onclick='loadManageVocabList(${JSON.stringify(l.language_to)})'>${escapeHtml(l.language_to)} (${l.count})</button>`).join('');
+
+    if (!words.length) {
+      wrap.innerHTML = `<div class="empty-state" style="padding:36px 20px;"><div class="empty-icon">📭</div><h3>No words yet</h3><p>Go to <a onclick="nav('import')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Import</a> to sync from Duolingo, paste a list, or add a word.</p></div>`;
+      return;
+    }
+    wrap.innerHTML = `<div style="overflow-x:auto;"><table class="vocab-table"><thead><tr>
+      <th>Word</th><th>Translation</th><th>From</th><th>To</th><th>Progress</th><th>Status</th><th></th>
+    </tr></thead><tbody>` +
+      words.map(w => {
+        const wid = w.id;
+        const lf = w.language_from || 'en';
+        const lt = w.language_to || 'unknown';
+        const total = (w.correct_count || 0) + (w.wrong_count || 0);
+        const acc = total > 0 ? Math.round((w.correct_count || 0) / total * 100) : null;
+        const status = total === 0 ? '<span class="badge badge-new">new</span>'
+          : acc >= 80 ? '<span class="badge badge-strong">strong</span>'
+          : acc >= 50 ? '<span class="badge badge-learning">learning</span>'
+          : '<span class="badge badge-weak">weak</span>';
+        const accColor = acc === null ? 'var(--text3)' : acc >= 70 ? 'var(--accent3)' : acc >= 40 ? 'var(--accent4)' : 'var(--accent2)';
+        return `<tr data-id="${escAttr(wid)}" data-word="${escAttr(w.word || '')}" data-trans="${escAttr(w.translation || '')}" data-from="${escAttr(lf)}" data-to="${escAttr(lt)}">
+      <td class="word-cell">${escapeHtml(w.word)}</td>
+      <td class="trans-cell">${w.translation ? escapeHtml(w.translation) : '<span style="color:var(--text3)">–</span>'}</td>
+      <td><span class="lang-pill">${escapeHtml(lf)}</span></td>
+      <td><span class="lang-pill">${escapeHtml(lt)}</span></td>
+      <td><div class="accuracy-bar">
+        <div class="acc-track"><div class="acc-fill" style="width:${acc || 0}%;background:${accColor}"></div></div>
+        <span style="font-size:12px;color:${accColor};font-family:'DM Mono',monospace">${acc !== null ? acc + '%' : '–'}</span>
+      </div></td>
+      <td>${status}</td>
+      <td><div class="manage-row-actions">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="startEditManageRow(this)">Edit</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="deleteManageWord(this)">✕</button>
+      </div></td>
+    </tr>`;
+      }).join('') + '</tbody></table></div>';
+  } catch (e) {
+    console.error(e);
+    toast(e.message, 'error');
+  }
+}
+
+function startEditManageRow(btn) {
+  const tr = btn.closest('tr');
+  if (!tr || tr.classList.contains('mv-editing')) return;
+  tr.classList.add('mv-editing');
+  const w = tr.dataset.word || '';
+  const t = tr.dataset.trans || '';
+  const f = tr.dataset.from || 'en';
+  const to = tr.dataset.to || 'unknown';
+  const tds = tr.children;
+  tds[0].innerHTML = `<input class="vocab-inline-inp" name="mv-word" value="${escAttr(w)}">`;
+  tds[1].innerHTML = `<input class="vocab-inline-inp" name="mv-trans" value="${escAttr(t)}">`;
+  tds[2].innerHTML = `<input class="vocab-inline-inp" name="mv-from" value="${escAttr(f)}" style="max-width:100px">`;
+  tds[3].innerHTML = `<input class="vocab-inline-inp" name="mv-to" value="${escAttr(to)}" style="max-width:100px">`;
+  tds[6].innerHTML = `<div class="manage-row-actions">
+    <button type="button" class="btn btn-primary btn-sm" onclick="saveManageRow(this)">Save</button>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="cancelManageRow(this)">Cancel</button>
+  </div>`;
+}
+
+function cancelManageRow(btn) {
+  loadManageVocabList(manageVocabLang);
+}
+
+async function saveManageRow(btn) {
+  const tr = btn.closest('tr');
+  const id = tr.dataset.id;
+  const word = tr.querySelector('[name=mv-word]').value.trim();
+  const translation = tr.querySelector('[name=mv-trans]').value.trim();
+  const language_from = tr.querySelector('[name=mv-from]').value.trim() || 'en';
+  const language_to = tr.querySelector('[name=mv-to]').value.trim() || 'unknown';
+  if (!word) {
+    toast('Word cannot be empty', 'error');
+    return;
+  }
+  try {
+    await api(`/api/vocab/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ word, translation, language_from, language_to })
+    });
+    toast('Saved', 'success');
+    loadManageVocabList(manageVocabLang);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function deleteManageWord(btn) {
+  if (!confirm('Delete this word?')) return;
+  const tr = btn.closest('tr');
+  const id = tr.dataset.id;
+  try {
+    await api(`/api/vocab/${id}`, { method: 'DELETE' });
+    toast('Word deleted', 'info');
+    loadManageVocabList(manageVocabLang);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function loadWeakList() {
+  const words = await api('/api/vocab/weak?limit=50');
+  document.getElementById('weak-list-wrap').innerHTML = words.length
+    ? renderMiniTable(words)
+    : `<div class="empty-state"><div class="empty-icon">🎉</div><h3>No struggling words!</h3><p>Great work — keep it up.</p></div>`;
+}
+
+async function loadStrongList() {
+  const words = await api('/api/vocab/strong?limit=50');
+  document.getElementById('strong-list-wrap').innerHTML = words.length
+    ? renderMiniTable(words)
+    : `<div class="empty-state"><div class="empty-icon">🌱</div><h3>No mastered words yet</h3><p>Keep training — you'll get there!</p></div>`;
+}
+
+// ─── Training ─────────────────────────────────────────────────────────────────
+async function loadTrainLangs() {
+  const langs = await api('/api/vocab/languages');
+  const sel = document.getElementById('train-lang');
+  const existing = [...sel.options].map(o => o.value);
+  langs.forEach(l => {
+    if (!existing.includes(l.language_to)) {
+      sel.add(new Option(l.language_to + ` (${l.count})`, l.language_to));
+    }
+  });
+}
+
+function selectMode(el) {
+  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  currentMode = el.dataset.mode;
+}
+
+async function startSession() {
+  const pool = document.getElementById('train-pool').value;
+  const lang = document.getElementById('train-lang').value;
+  const size = parseInt(document.getElementById('train-size').value);
+  const langParam = lang ? `&language=${lang}` : '';
+  
+  let words;
+  if (pool === 'due') words = await api(`/api/vocab/due?limit=${size}${langParam}`);
+  else if (pool === 'weak') words = await api(`/api/vocab/weak?limit=${size}${langParam}`);
+  else words = await api(`/api/vocab${lang ? '?language='+lang : ''}`);
+
+  if (!words.length) {
+    toast('No words available! Import some vocabulary first.', 'error');
+    return;
+  }
+  
+  // Shuffle
+  sessionWords = words.sort(() => Math.random() - 0.5).slice(0, size);
+  sessionIdx = 0;
+  sessionCorrect = 0;
+  sessionWrong = 0;
+
+  document.getElementById('train-setup').style.display = 'none';
+  document.getElementById('session-complete').classList.remove('visible');
+  document.getElementById('train-session').style.display = 'block';
+  
+  showCurrentWord();
+}
+
+function showCurrentWord() {
+  if (sessionIdx >= sessionWords.length) {
+    endSessionComplete();
+    return;
+  }
+  const word = sessionWords[sessionIdx];
+  const progress = (sessionIdx / sessionWords.length) * 100;
+  document.getElementById('session-bar').style.width = progress + '%';
+  document.getElementById('session-counter').textContent = `${sessionIdx + 1} / ${sessionWords.length}`;
+
+  // Hide all modes
+  ['flashcard','multiple','typing'].forEach(m => document.getElementById('mode-'+m).style.display = 'none');
+  
+  if (currentMode === 'flashcard') showFlashcard(word);
+  else if (currentMode === 'multiple') showMultiple(word);
+  else showTyping(word);
+}
+
+function showFlashcard(word) {
+  document.getElementById('mode-flashcard').style.display = 'block';
+  document.getElementById('fc-word').textContent = word.word;
+  document.getElementById('fc-lang').textContent = word.language_to;
+  document.getElementById('fc-trans').textContent = word.translation || '?';
+  document.getElementById('the-card').classList.remove('flipped');
+  document.getElementById('card-controls').classList.remove('visible');
+  cardFlipped = false;
+}
+
+function flipCard() {
+  if (!cardFlipped) {
+    document.getElementById('the-card').classList.add('flipped');
+    document.getElementById('card-controls').classList.add('visible');
+    cardFlipped = true;
+  }
+}
+
+async function answerCard(correct) {
+  const word = sessionWords[sessionIdx];
+  await api('/api/answer', { method: 'POST', body: JSON.stringify({ vocab_id: word.id, correct, mode: 'flashcard' }) });
+  if (correct) sessionCorrect++; else sessionWrong++;
+  sessionIdx++;
+  showCurrentWord();
+}
+
+async function showMultiple(word) {
+  document.getElementById('mode-multiple').style.display = 'block';
+  document.getElementById('mc-word').textContent = word.word;
+  document.getElementById('mc-lang').textContent = word.language_to;
+  mcAnswered = false;
+  
+  let choices;
+  try {
+    const data = await api(`/api/quiz/choices?vocab_id=${word.id}`);
+    choices = data.choices;
+  } catch {
+    choices = [word.translation];
+  }
+
+  const choicesEl = document.getElementById('mc-choices');
+  choicesEl.innerHTML = choices.map(c =>
+    `<button class="mc-choice" onclick="answerMC(this,'${c.replace(/'/g,"\\'")}','${(word.translation||'').replace(/'/g,"\\'")}')">
+      ${c || '<em>–</em>'}
+    </button>`
+  ).join('');
+}
+
+async function answerMC(btn, chosen, correct) {
+  if (mcAnswered) return;
+  mcAnswered = true;
+  const word = sessionWords[sessionIdx];
+  const isCorrect = chosen === correct;
+  
+  document.querySelectorAll('.mc-choice').forEach(b => {
+    b.classList.add('disabled');
+    if (b.textContent.trim() === correct) b.classList.add('correct');
+    else if (b === btn && !isCorrect) b.classList.add('wrong');
+  });
+
+  await api('/api/answer', { method: 'POST', body: JSON.stringify({ vocab_id: word.id, correct: isCorrect, mode: 'multiple_choice' }) });
+  if (isCorrect) sessionCorrect++; else sessionWrong++;
+  
+  setTimeout(() => { sessionIdx++; showCurrentWord(); }, 900);
+}
+
+function showTyping(word) {
+  document.getElementById('mode-typing').style.display = 'block';
+  document.getElementById('ty-word').textContent = word.word;
+  document.getElementById('ty-lang').textContent = word.language_to;
+  const inp = document.getElementById('ty-input');
+  inp.value = '';
+  inp.className = 'type-input';
+  document.getElementById('ty-feedback').textContent = '';
+  document.getElementById('ty-check-btn').style.display = '';
+  document.getElementById('ty-skip-btn').style.display = '';
+  document.getElementById('ty-next-btn').style.display = 'none';
+  inp.focus();
+}
+
+function handleTypeKey(e) {
+  if (e.key === 'Enter') {
+    const nextBtn = document.getElementById('ty-next-btn');
+    if (nextBtn.style.display !== 'none') nextWord();
+    else checkTyping();
+  }
+}
+
+async function checkTyping() {
+  const word = sessionWords[sessionIdx];
+  const typed = document.getElementById('ty-input').value.trim().toLowerCase();
+  const correct = (word.translation || '').trim().toLowerCase();
+  const isCorrect = typed === correct || levenshtein(typed, correct) <= 1;
+  
+  const inp = document.getElementById('ty-input');
+  const fb = document.getElementById('ty-feedback');
+  inp.className = 'type-input ' + (isCorrect ? 'correct' : 'wrong');
+  fb.style.color = isCorrect ? 'var(--accent3)' : 'var(--accent2)';
+  fb.textContent = isCorrect ? '✓ Correct!' : `✗ Answer: ${word.translation}`;
+  
+  document.getElementById('ty-check-btn').style.display = 'none';
+  document.getElementById('ty-skip-btn').style.display = 'none';
+  document.getElementById('ty-next-btn').style.display = '';
+  
+  await api('/api/answer', { method: 'POST', body: JSON.stringify({ vocab_id: word.id, correct: isCorrect, mode: 'typing' }) });
+  if (isCorrect) sessionCorrect++; else sessionWrong++;
+}
+
+async function skipTyping() {
+  const word = sessionWords[sessionIdx];
+  await api('/api/answer', { method: 'POST', body: JSON.stringify({ vocab_id: word.id, correct: false, mode: 'typing' }) });
+  sessionWrong++;
+  sessionIdx++;
+  showCurrentWord();
+}
+
+function nextWord() { sessionIdx++; showCurrentWord(); }
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i || j));
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function endSessionComplete() {
+  document.getElementById('train-session').style.display = 'none';
+  const sc = document.getElementById('session-complete');
+  sc.classList.add('visible');
+  const total = sessionCorrect + sessionWrong;
+  const pct = total > 0 ? Math.round(sessionCorrect / total * 100) : 0;
+  document.getElementById('sc-correct').textContent = sessionCorrect;
+  document.getElementById('sc-wrong').textContent = sessionWrong;
+  document.getElementById('sc-pct').textContent = pct + '%';
+  document.getElementById('sc-emoji').textContent = pct >= 80 ? '🎉' : pct >= 50 ? '💪' : '📚';
+  document.getElementById('sc-title').textContent = pct >= 80 ? 'Excellent Work!' : pct >= 50 ? 'Good Progress!' : 'Keep Practicing!';
+}
+
+function endSession() {
+  document.getElementById('train-session').style.display = 'none';
+  document.getElementById('session-complete').classList.remove('visible');
+  document.getElementById('train-setup').style.display = 'block';
+}
+
+function restartSession() {
+  document.getElementById('session-complete').classList.remove('visible');
+  document.getElementById('train-setup').style.display = 'block';
+}
+
+function trainWeak() {
+  document.getElementById('train-pool').value = 'weak';
+  nav('train');
+}
+
+// ─── Import ───────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  const isPass = tab === 'pass';
+  document.getElementById('auth-pass').style.display = isPass ? '' : 'none';
+  document.getElementById('auth-jwt').style.display = isPass ? 'none' : '';
+  document.getElementById('tab-pass').style.background = isPass ? 'var(--accent)' : 'transparent';
+  document.getElementById('tab-pass').style.color = isPass ? '#fff' : 'var(--text2)';
+  document.getElementById('tab-jwt').style.background = isPass ? 'transparent' : 'var(--accent)';
+  document.getElementById('tab-jwt').style.color = isPass ? 'var(--text2)' : '#fff';
+}
+
+function duoResultOk(data) {
+  const res = document.getElementById('duo-result');
+  res.style.color = data.imported > 0 ? 'var(--accent3)' : 'var(--text2)';
+  res.innerHTML = data.imported > 0
+    ? `✅ Imported <strong>${data.imported}</strong> new words (skipped ${data.skipped} duplicates). <em style="color:var(--text3)">${data.note}</em>`
+    : `ℹ️ ${data.note}`;
+  if (data.imported > 0) toast(`Imported ${data.imported} words!`, 'success');
+  else toast('Sync done — see details below', 'info');
+  refreshManageVocabIfVisible();
+}
+
+function duoResultErr(e) {
+  const res = document.getElementById('duo-result');
+  res.style.color = 'var(--accent2)';
+  res.textContent = '❌ ' + e.message;
+  toast(e.message, 'error');
+}
+
+async function syncDuolingo() {
+  const username = document.getElementById('duo-username').value.trim();
+  const password = document.getElementById('duo-password').value;
+  if (!username) { toast('Enter your Duolingo username', 'error'); return; }
+  if (!password) { toast('Enter your Duolingo password', 'error'); return; }
+  const res = document.getElementById('duo-result');
+  res.style.color = 'var(--text2)';
+  res.textContent = '🔄 Logging in and fetching vocabulary…';
+  try {
+    const data = await api('/api/sync/duolingo', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    document.getElementById('duo-password').value = '';
+    duoResultOk(data);
+  } catch (e) {
+    document.getElementById('duo-password').value = '';
+    duoResultErr(e);
+  }
+}
+
+async function syncDuolingoJWT() {
+  const username = document.getElementById('duo-username-jwt').value.trim();
+  const jwt = document.getElementById('duo-jwt').value.trim();
+  if (!username) { toast('Enter your Duolingo username', 'error'); return; }
+  if (!jwt) { toast('Paste your JWT token', 'error'); return; }
+  const res = document.getElementById('duo-result');
+  res.style.color = 'var(--text2)';
+  res.textContent = '🔄 Fetching vocabulary with JWT…';
+  try {
+    const data = await api('/api/sync/duolingo', {
+      method: 'POST',
+      body: JSON.stringify({ username, jwt })
+    });
+    duoResultOk(data);
+  } catch (e) {
+    duoResultErr(e);
+  }
+}
+
+async function importPasted() {
+  const raw = document.getElementById('paste-area').value.trim();
+  const lang = document.getElementById('paste-lang').value.trim() || 'unknown';
+  const from = document.getElementById('paste-from').value.trim() || 'en';
+  if (!raw) { toast('Paste some words first', 'error'); return; }
+  
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const items = [];
+  for (const line of lines) {
+    const sep = line.includes('=') ? '=' : ',';
+    const [word, ...rest] = line.split(sep);
+    if (word && rest.length) {
+      items.push({ word: word.trim(), translation: rest.join(sep).trim(), language_from: from, language_to: lang });
+    }
+  }
+  if (!items.length) { toast('Could not parse any lines. Use "word = translation" format.', 'error'); return; }
+  
+  const data = await api('/api/vocab/bulk', { method: 'POST', body: JSON.stringify({ items, source: 'manual' }) });
+  toast(`Imported ${data.imported} words!`, 'success');
+  document.getElementById('paste-area').value = '';
+  refreshManageVocabIfVisible();
+}
+
+async function addSingle() {
+  const word = document.getElementById('single-word').value.trim();
+  const trans = document.getElementById('single-trans').value.trim();
+  const lang = document.getElementById('single-lang').value.trim() || 'unknown';
+  if (!word || !trans) { toast('Enter both word and translation', 'error'); return; }
+  
+  await api('/api/vocab', { method: 'POST', body: JSON.stringify({ word, translation: trans, language_to: lang }) });
+  toast(`"${word}" added!`, 'success');
+  document.getElementById('single-word').value = '';
+  document.getElementById('single-trans').value = '';
+  refreshManageVocabIfVisible();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadDashboard();
+loadTrainLangs();
+</script>
+</body>
+</html>

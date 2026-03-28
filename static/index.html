@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duo Trainer — Vocabulary Mastery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c26;
+  --border: #2a2a38;
+  --accent: #58e06a;
+  --accent2: #3ecfff;
+  --warn: #ff6b6b;
+  --muted: #555570;
+  --text: #e8e8f0;
+  --text2: #9898b0;
+  --radius: 12px;
+  --font-head: 'Syne', sans-serif;
+  --font-mono: 'DM Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grid noise overlay ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
+}
+
+/* ── Screens ── */
+.screen { display: none; }
+.screen.active { display: flex; }
+
+/* ── LOGIN SCREEN ── */
+#login-screen {
+  min-height: 100vh;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+}
+
+.login-glow {
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(88,224,106,0.07) 0%, transparent 70%);
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.logo {
+  font-family: var(--font-head);
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin-bottom: 0.3rem;
+}
+.logo span { color: var(--accent); }
+
+.tagline {
+  color: var(--text2);
+  font-size: 0.85rem;
+  margin-bottom: 3rem;
+  letter-spacing: 0.05em;
+}
+
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.login-card h2 {
+  font-family: var(--font-head);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.login-card p {
+  font-size: 0.78rem;
+  color: var(--text2);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.code-block {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.72rem;
+  color: var(--accent2);
+  margin-bottom: 1.5rem;
+  word-break: break-all;
+  user-select: all;
+  cursor: text;
+}
+
+label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+input[type="text"], input[type="password"], select {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.2s;
+  margin-bottom: 1rem;
+}
+
+input:focus, select:focus { border-color: var(--accent); }
+
+select option { background: var(--surface2); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+  width: 100%;
+  justify-content: center;
+}
+.btn-primary:hover { background: #6ff07e; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+.error-msg {
+  background: rgba(255,107,107,0.1);
+  border: 1px solid rgba(255,107,107,0.3);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  color: var(--warn);
+  margin-top: 1rem;
+  display: none;
+}
+
+/* ── MAIN APP ── */
+#app-screen {
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky; top: 0; z-index: 10;
+}
+
+.app-header .logo { font-size: 1.4rem; margin: 0; }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.78rem;
+  color: var(--text2);
+}
+.user-badge .dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* Nav tabs */
+.nav-tabs {
+  display: flex;
+  padding: 1rem 1.5rem 0;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.nav-tab {
+  padding: 0.6rem 1.2rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -1px;
+}
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Content area */
+.content {
+  flex: 1;
+  padding: 1.5rem;
+  max-width: 1100px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── DASHBOARD ── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+.stat-card.warn::before { background: var(--warn); }
+.stat-card.info::before { background: var(--accent2); }
+
+.stat-label {
+  font-size: 0.7rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+.stat-value {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Language selector */
+.lang-select-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.lang-select-row label { margin: 0; white-space: nowrap; }
+.lang-select-row select { margin: 0; flex: 1; max-width: 300px; }
+
+/* ── VOCABULARY TABLE ── */
+.vocab-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 200px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  outline: none;
+  margin: 0;
+}
+.search-input:focus { border-color: var(--accent); }
+
+.filter-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-btn:hover, .filter-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.vocab-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.vocab-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.vocab-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  cursor: pointer;
+  user-select: none;
+}
+.vocab-table th:hover { color: var(--text); }
+
+.vocab-table td {
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.vocab-table tr:last-child td { border-bottom: none; }
+.vocab-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+.strength-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bar-bg {
+  flex: 1;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  max-width: 80px;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+.bar-fill.strong { background: var(--accent); }
+.bar-fill.medium { background: #f0c040; }
+.bar-fill.weak { background: var(--warn); }
+
+.strength-num {
+  font-size: 0.72rem;
+  color: var(--text2);
+  min-width: 30px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+
+.word-cell {
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* ── TRAINER ── */
+.trainer-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 60vh;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.trainer-meta {
+  font-size: 0.75rem;
+  color: var(--text2);
+  text-align: center;
+}
+
+.trainer-progress {
+  width: 100%;
+  max-width: 500px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}
+.trainer-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+.card-3d {
+  width: 100%;
+  max-width: 500px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4,0,0.2,1);
+  min-height: 220px;
+}
+
+.card-inner.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.card-face.back { transform: rotateY(180deg); }
+
+.card-word {
+  font-family: var(--font-head);
+  font-size: 2.8rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.card-hint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.card-translation {
+  font-family: var(--font-head);
+  font-size: 2rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.card-pos {
+  font-size: 0.75rem;
+  color: var(--text2);
+}
+
+.trainer-actions {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.btn-wrong {
+  flex: 1;
+  background: rgba(255,107,107,0.12);
+  border: 1px solid rgba(255,107,107,0.3);
+  color: var(--warn);
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-wrong:hover { background: rgba(255,107,107,0.2); }
+
+.btn-right {
+  flex: 1;
+  background: rgba(88,224,106,0.12);
+  border: 1px solid rgba(88,224,106,0.3);
+  color: var(--accent);
+  padding: 0.9rem;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-right:hover { background: rgba(88,224,106,0.2); }
+
+.trainer-mode-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* ── Progress screen ── */
+.progress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.progress-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+
+.progress-section h3 {
+  font-family: var(--font-head);
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.word-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.word-pill {
+  padding: 0.25rem 0.6rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  border: 1px solid;
+}
+.word-pill.good {
+  background: rgba(88,224,106,0.1);
+  border-color: rgba(88,224,106,0.3);
+  color: var(--accent);
+}
+.word-pill.bad {
+  background: rgba(255,107,107,0.1);
+  border-color: rgba(255,107,107,0.3);
+  color: var(--warn);
+}
+
+/* Loading */
+.loader {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem;
+}
+.loader.visible { display: flex; }
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.empty-state {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text2);
+  font-size: 0.85rem;
+}
+
+/* Session summary */
+.session-summary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+.session-summary h2 {
+  font-family: var(--font-head);
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+.session-score {
+  font-family: var(--font-head);
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 0.5rem;
+}
+.session-score-label {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-bottom: 1.5rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Tab panels */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+@media (max-width: 600px) {
+  .progress-grid { grid-template-columns: 1fr; }
+  .card-word { font-size: 2rem; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════════════════════════════════ -->
+<section id="login-screen" class="screen active">
+  <div class="login-glow"></div>
+
+  <div class="logo">DUO<span>trainer</span></div>
+  <div class="tagline">vocabulary mastery, powered by your duolingo data</div>
+
+  <div class="login-card">
+    <h2>Connect your account</h2>
+    <p>This app uses your Duolingo JWT token for authentication. Your token never leaves your browser session and is only used to fetch your vocabulary.</p>
+
+    <label>Step 1 — Open duolingo.com and log in, then paste this into your browser console (F12):</label>
+    <div class="code-block">document.cookie.match(new RegExp('(^| )jwt_token=([^;]+)'))[0].slice(11)</div>
+
+    <label for="jwt-input">Step 2 — Paste your JWT token here</label>
+    <input type="password" id="jwt-input" placeholder="eyJ0eXAiOiJKV1QiLCJhbGciOi...">
+
+    <button class="btn btn-primary" id="connect-btn" onclick="connectAccount()">
+      <span id="connect-btn-text">Connect →</span>
+    </button>
+
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MAIN APP
+══════════════════════════════════════════════════════════════════ -->
+<section id="app-screen" class="screen">
+  <header class="app-header">
+    <div class="logo">DUO<span>trainer</span></div>
+    <div class="header-right">
+      <div class="user-badge">
+        <div class="dot"></div>
+        <span id="header-username">—</span>
+      </div>
+      <button class="btn btn-outline" onclick="logout()" style="padding:0.4rem 0.9rem;font-size:0.75rem;">Logout</button>
+    </div>
+  </header>
+
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="nav-tab" onclick="switchTab('vocabulary')">Vocabulary</button>
+    <button class="nav-tab" onclick="switchTab('trainer')">Trainer</button>
+    <button class="nav-tab" onclick="switchTab('progress')">My Progress</button>
+  </nav>
+
+  <main class="content">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="lang-select-row">
+        <label>Language:</label>
+        <select id="lang-select" onchange="loadVocabulary()"></select>
+        <button class="btn btn-outline" onclick="loadVocabulary()" style="padding:0.55rem 1rem;font-size:0.78rem;">↻ Refresh</button>
+      </div>
+
+      <div class="loader" id="dash-loader">
+        <div class="spinner"></div>
+        <span style="font-size:0.8rem;color:var(--text2)">Fetching vocabulary...</span>
+      </div>
+
+      <div id="dash-content" style="display:none">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Words</div>
+            <div class="stat-value" id="stat-total">—</div>
+          </div>
+          <div class="stat-card warn">
+            <div class="stat-label">Need Practice</div>
+            <div class="stat-value" id="stat-weak">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Strong Words</div>
+            <div class="stat-value" id="stat-strong">—</div>
+          </div>
+          <div class="stat-card info">
+            <div class="stat-label">Session Score</div>
+            <div class="stat-value" id="stat-session">—</div>
+          </div>
+        </div>
+
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;margin-bottom:1rem">
+          <div style="font-size:0.75rem;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:1rem">Vocabulary Strength Distribution</div>
+          <div id="distribution-chart" style="display:flex;align-items:flex-end;gap:4px;height:80px"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.65rem;color:var(--muted)">
+            <span>0%</span><span>20%</span><span>40%</span><span>60%</span><span>80%</span><span>100%</span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:1rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="startTrainer('weak')" style="flex:1;min-width:200px">
+            ⚡ Train Weak Words
+          </button>
+          <button class="btn btn-outline" onclick="startTrainer('all')" style="flex:1;min-width:200px">
+            🔄 Train All Words
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── VOCABULARY ── -->
+    <div id="tab-vocabulary" class="tab-panel">
+      <div class="vocab-controls">
+        <input class="search-input" type="text" id="search-input" placeholder="Search words..." oninput="renderVocabTable()">
+        <button class="filter-btn active" id="filter-all" onclick="setFilter('all')">All</button>
+        <button class="filter-btn" id="filter-weak" onclick="setFilter('weak')">Weak</button>
+        <button class="filter-btn" id="filter-strong" onclick="setFilter('strong')">Strong</button>
+      </div>
+
+      <div class="vocab-table-wrap">
+        <table class="vocab-table">
+          <thead>
+            <tr>
+              <th onclick="sortBy('word')">Word ↕</th>
+              <th onclick="sortBy('skill')">Skill ↕</th>
+              <th onclick="sortBy('strength')">Strength ↕</th>
+              <th>My Score</th>
+              <th>POS</th>
+            </tr>
+          </thead>
+          <tbody id="vocab-tbody"></tbody>
+        </table>
+        <div class="empty-state" id="vocab-empty" style="display:none">No words loaded yet. Go to Dashboard and select a language.</div>
+      </div>
+    </div>
+
+    <!-- ── TRAINER ── -->
+    <div id="tab-trainer" class="tab-panel">
+      <div class="trainer-mode-row">
+        <button class="filter-btn active" id="mode-weak" onclick="setTrainerMode('weak')">⚡ Weak first</button>
+        <button class="filter-btn" id="mode-all" onclick="setTrainerMode('all')">🔀 All words</button>
+        <button class="filter-btn" id="mode-random" onclick="setTrainerMode('random')">🎲 Random</button>
+      </div>
+
+      <div id="trainer-start" style="text-align:center;padding:3rem 1rem">
+        <div style="font-family:var(--font-head);font-size:1.4rem;font-weight:700;margin-bottom:0.5rem">Ready to train?</div>
+        <div style="color:var(--text2);font-size:0.85rem;margin-bottom:2rem">Load vocabulary first, then start a session.</div>
+        <button class="btn btn-primary" onclick="startTrainer('weak')" style="max-width:300px">Start Session →</button>
+      </div>
+
+      <div id="trainer-session" style="display:none">
+        <div class="trainer-wrap">
+          <div class="trainer-meta">
+            <span id="trainer-progress-label">0 / 0</span> · click card to reveal
+          </div>
+          <div class="trainer-progress">
+            <div class="trainer-progress-fill" id="trainer-bar" style="width:0%"></div>
+          </div>
+          <div class="card-3d" onclick="flipCard()">
+            <div class="card-inner" id="flash-card">
+              <div class="card-face front">
+                <div class="card-word" id="card-word">—</div>
+                <div class="card-hint" id="card-skill">skill</div>
+              </div>
+              <div class="card-face back">
+                <div class="card-translation" id="card-translation">—</div>
+                <div class="card-pos" id="card-pos"></div>
+              </div>
+            </div>
+          </div>
+          <div class="trainer-actions" id="trainer-btns" style="display:none">
+            <button class="btn-wrong" onclick="markWord(false)">✗ Hard</button>
+            <button class="btn-right" onclick="markWord(true)">✓ Got it</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="trainer-done" style="display:none;justify-content:center;min-height:50vh;align-items:center">
+        <div class="session-summary">
+          <h2>Session Complete!</h2>
+          <div class="session-score" id="done-score">—</div>
+          <div class="session-score-label">correct / total</div>
+          <div style="font-size:0.8rem;color:var(--text2);margin-bottom:1.5rem" id="done-msg"></div>
+          <button class="btn btn-primary" onclick="startTrainer(currentTrainerMode)">Train Again</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PROGRESS ── -->
+    <div id="tab-progress" class="tab-panel">
+      <div class="progress-grid">
+        <div class="progress-section">
+          <h3><span style="color:var(--accent)">✓</span> Words I Know</h3>
+          <div class="word-pill-list" id="good-words-list">
+            <div class="empty-state" style="padding:0.5rem">No words marked yet.</div>
+          </div>
+        </div>
+        <div class="progress-section">
+          <h3><span style="color:var(--warn)">✗</span> Need Practice</h3>
+          <div class="word-pill-list" id="bad-words-list">
+            <div class="empty-state" style="padding:0.5rem">No words marked yet.</div>
+          </div>
+        </div>
+      </div>
+      <div style="text-align:center">
+        <button class="btn btn-outline" onclick="clearProgress()" style="font-size:0.75rem;color:var(--warn);border-color:rgba(255,107,107,0.3)">
+          Reset Progress
+        </button>
+      </div>
+    </div>
+
+  </main>
+</section>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════ */
+let jwt = '';
+let username = '';
+let courses = [];
+let vocabulary = [];           // [{word, skill, strength, ...}]
+let progress = {};             // {word: {correct, wrong, score}}
+let currentLang = '';
+let currentFilter = 'all';
+let currentSort = { key: 'strength', asc: true };
+let trainerQueue = [];
+let trainerIdx = 0;
+let trainerCorrect = 0;
+let trainerFlipped = false;
+let trainerTranslations = {};  // cache
+let currentTrainerMode = 'weak';
+
+/* ══════════════════════════════════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════════════════════════════════ */
+function saveProgress() {
+  try { localStorage.setItem('duo_progress_' + currentLang, JSON.stringify(progress)); } catch(e) {}
+}
+function loadProgress() {
+  try { progress = JSON.parse(localStorage.getItem('duo_progress_' + currentLang) || '{}'); } catch(e) { progress = {}; }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   AUTH
+══════════════════════════════════════════════════════════════════ */
+async function connectAccount() {
+  const input = document.getElementById('jwt-input').value.trim();
+  if (!input) { showLoginError('Please paste your JWT token.'); return; }
+  jwt = input;
+  const btn = document.getElementById('connect-btn');
+  btn.disabled = true;
+  document.getElementById('connect-btn-text').textContent = 'Connecting...';
+  clearLoginError();
+  try {
+    const res = await fetch('/api/connect', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ jwt })
+    });
+    const data = await res.json();
+    if (!res.ok) { showLoginError(data.error || 'Connection failed.'); return; }
+    username = data.username;
+    courses = data.courses || [];
+    showApp();
+  } catch(e) {
+    showLoginError('Network error: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    document.getElementById('connect-btn-text').textContent = 'Connect →';
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function clearLoginError() {
+  document.getElementById('login-error').style.display = 'none';
+}
+
+function showApp() {
+  document.getElementById('login-screen').classList.remove('active');
+  document.getElementById('app-screen').classList.add('active');
+  document.getElementById('header-username').textContent = username;
+  // populate language selector
+  const sel = document.getElementById('lang-select');
+  sel.innerHTML = '';
+  courses.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.learning;
+    opt.textContent = c.title || c.learning;
+    sel.appendChild(opt);
+  });
+  if (courses.length > 0) {
+    currentLang = courses[0].learning;
+    loadVocabulary();
+  }
+}
+
+function logout() {
+  jwt = ''; username = ''; courses = []; vocabulary = []; progress = {};
+  document.getElementById('login-screen').classList.add('active');
+  document.getElementById('app-screen').classList.remove('active');
+  document.getElementById('jwt-input').value = '';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'progress') renderProgress();
+  if (name === 'vocabulary') renderVocabTable();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VOCABULARY
+══════════════════════════════════════════════════════════════════ */
+async function loadVocabulary() {
+  const sel = document.getElementById('lang-select');
+  currentLang = sel.value;
+  if (!currentLang) return;
+  loadProgress();
+
+  document.getElementById('dash-loader').classList.add('visible');
+  document.getElementById('dash-content').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/vocabulary', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ jwt, language: currentLang })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Failed to load vocabulary'); return; }
+    vocabulary = data.words || [];
+    trainerTranslations = {};
+    updateDashboard();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  } finally {
+    document.getElementById('dash-loader').classList.remove('visible');
+  }
+}
+
+function updateDashboard() {
+  const total = vocabulary.length;
+  const weak = vocabulary.filter(w => w.strength < 0.5).length;
+  const strong = vocabulary.filter(w => w.strength >= 0.7).length;
+
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-weak').textContent = weak;
+  document.getElementById('stat-strong').textContent = strong;
+  updateSessionStat();
+  renderDistributionChart();
+  document.getElementById('dash-content').style.display = 'block';
+}
+
+function updateSessionStat() {
+  const scores = Object.values(progress);
+  if (scores.length === 0) { document.getElementById('stat-session').textContent = '—'; return; }
+  const correct = scores.reduce((a,s) => a + (s.correct||0), 0);
+  const total = scores.reduce((a,s) => a + (s.correct||0) + (s.wrong||0), 0);
+  document.getElementById('stat-session').textContent = total ? Math.round(correct/total*100) + '%' : '—';
+}
+
+function renderDistributionChart() {
+  const buckets = new Array(10).fill(0);
+  vocabulary.forEach(w => {
+    const idx = Math.min(9, Math.floor(w.strength * 10));
+    buckets[idx]++;
+  });
+  const max = Math.max(...buckets, 1);
+  const chart = document.getElementById('distribution-chart');
+  chart.innerHTML = buckets.map((count, i) => {
+    const pct = Math.round(count / max * 100);
+    const hue = i < 4 ? 'var(--warn)' : i < 7 ? '#f0c040' : 'var(--accent)';
+    return `<div title="${count} words" style="flex:1;background:${hue};height:${pct}%;border-radius:2px 2px 0 0;opacity:0.85;min-height:${count?2:0}px"></div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VOCAB TABLE
+══════════════════════════════════════════════════════════════════ */
+function setFilter(f) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn[id^=filter]').forEach(b => b.classList.remove('active'));
+  document.getElementById('filter-' + f).classList.add('active');
+  renderVocabTable();
+}
+
+function sortBy(key) {
+  if (currentSort.key === key) currentSort.asc = !currentSort.asc;
+  else { currentSort.key = key; currentSort.asc = true; }
+  renderVocabTable();
+}
+
+function renderVocabTable() {
+  const query = (document.getElementById('search-input')?.value || '').toLowerCase();
+  let words = vocabulary.filter(w => {
+    if (query && !w.word.includes(query) && !w.skill.toLowerCase().includes(query)) return false;
+    if (currentFilter === 'weak') return w.strength < 0.5;
+    if (currentFilter === 'strong') return w.strength >= 0.7;
+    return true;
+  });
+
+  words.sort((a, b) => {
+    let va = a[currentSort.key] || '', vb = b[currentSort.key] || '';
+    if (typeof va === 'string') va = va.toLowerCase(), vb = vb.toLowerCase();
+    return currentSort.asc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+
+  const tbody = document.getElementById('vocab-tbody');
+  const empty = document.getElementById('vocab-empty');
+  if (words.length === 0) {
+    tbody.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  tbody.innerHTML = words.map(w => {
+    const pct = Math.round(w.strength * 100);
+    const cls = w.strength >= 0.7 ? 'strong' : w.strength >= 0.4 ? 'medium' : 'weak';
+    const p = progress[w.word];
+    const myScore = p ? `${p.correct||0}✓ ${p.wrong||0}✗` : '—';
+    return `<tr>
+      <td class="word-cell">${escHtml(w.word)}</td>
+      <td><span class="tag">${escHtml(w.skill || '—')}</span></td>
+      <td>
+        <div class="strength-bar">
+          <div class="bar-bg"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>
+          <div class="strength-num">${pct}%</div>
+        </div>
+      </td>
+      <td style="font-size:0.75rem;color:var(--text2)">${myScore}</td>
+      <td><span class="tag">${escHtml(w.pos || '—')}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TRAINER
+══════════════════════════════════════════════════════════════════ */
+function setTrainerMode(mode) {
+  currentTrainerMode = mode;
+  document.querySelectorAll('.filter-btn[id^=mode]').forEach(b => b.classList.remove('active'));
+  document.getElementById('mode-' + mode).classList.add('active');
+}
+
+function startTrainer(mode) {
+  currentTrainerMode = mode || currentTrainerMode;
+  // Switch to trainer tab
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-tab')[2].classList.add('active');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-trainer').classList.add('active');
+
+  if (vocabulary.length === 0) { alert('Load vocabulary first.'); return; }
+
+  let words = [...vocabulary];
+  if (mode === 'weak' || mode === 'weak') {
+    // Prioritize: words with bad progress, then low strength
+    words.sort((a, b) => {
+      const pa = progress[a.word], pb = progress[b.word];
+      const scoreA = pa ? (pa.wrong||0) - (pa.correct||0)*0.5 : 0;
+      const scoreB = pb ? (pb.wrong||0) - (pb.correct||0)*0.5 : 0;
+      const diff = scoreB - scoreA;
+      if (diff !== 0) return diff;
+      return a.strength - b.strength;
+    });
+    words = words.slice(0, Math.min(20, words.length));
+  } else if (mode === 'random') {
+    for (let i = words.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [words[i], words[j]] = [words[j], words[i]];
+    }
+    words = words.slice(0, Math.min(20, words.length));
+  } else {
+    words = words.slice(0, Math.min(30, words.length));
+  }
+
+  trainerQueue = words;
+  trainerIdx = 0;
+  trainerCorrect = 0;
+  trainerFlipped = false;
+
+  document.getElementById('trainer-start').style.display = 'none';
+  document.getElementById('trainer-done').style.display = 'none';
+  document.getElementById('trainer-session').style.display = 'block';
+
+  showTrainerCard();
+}
+
+function showTrainerCard() {
+  if (trainerIdx >= trainerQueue.length) {
+    finishSession();
+    return;
+  }
+  const word = trainerQueue[trainerIdx];
+  trainerFlipped = false;
+
+  document.getElementById('flash-card').classList.remove('flipped');
+  document.getElementById('card-word').textContent = word.word;
+  document.getElementById('card-skill').textContent = word.skill || '';
+  document.getElementById('card-translation').textContent = trainerTranslations[word.word] || '...';
+  document.getElementById('card-pos').textContent = [word.pos, word.gender, word.infinitive ? `inf: ${word.infinitive}` : ''].filter(Boolean).join(' · ');
+  document.getElementById('trainer-btns').style.display = 'none';
+
+  // Update progress bar
+  const pct = Math.round(trainerIdx / trainerQueue.length * 100);
+  document.getElementById('trainer-bar').style.width = pct + '%';
+  document.getElementById('trainer-progress-label').textContent = `${trainerIdx + 1} / ${trainerQueue.length}`;
+
+  // Fetch translation if not cached
+  if (!trainerTranslations[word.word]) {
+    fetchTranslation(word);
+  }
+}
+
+async function fetchTranslation(word) {
+  try {
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ word: word.word, source: currentLang, target: 'en' })
+    });
+    const data = await res.json();
+    if (data.translation) {
+      trainerTranslations[word.word] = data.translation;
+      // Update if this is still the current card
+      if (trainerQueue[trainerIdx]?.word === word.word) {
+        document.getElementById('card-translation').textContent = data.translation;
+      }
+    } else {
+      trainerTranslations[word.word] = word.word; // fallback: show word itself
+    }
+  } catch(e) {
+    trainerTranslations[word.word] = '(no translation)';
+  }
+}
+
+function flipCard() {
+  if (trainerFlipped) return;
+  trainerFlipped = true;
+  document.getElementById('flash-card').classList.add('flipped');
+  setTimeout(() => {
+    document.getElementById('trainer-btns').style.display = 'flex';
+  }, 300);
+}
+
+function markWord(correct) {
+  const word = trainerQueue[trainerIdx];
+  if (!progress[word.word]) progress[word.word] = { correct: 0, wrong: 0 };
+  if (correct) { progress[word.word].correct++; trainerCorrect++; }
+  else { progress[word.word].wrong++; }
+  saveProgress();
+  trainerIdx++;
+  showTrainerCard();
+}
+
+function finishSession() {
+  document.getElementById('trainer-session').style.display = 'none';
+  document.getElementById('trainer-done').style.display = 'flex';
+  const total = trainerQueue.length;
+  document.getElementById('done-score').textContent = `${trainerCorrect}/${total}`;
+  const pct = Math.round(trainerCorrect / total * 100);
+  const msgs = ['Keep going! Practice makes perfect.', 'Getting there!', 'Good work!', 'Great session!', 'Excellent! 🎉'];
+  document.getElementById('done-msg').textContent = msgs[Math.min(4, Math.floor(pct / 20))];
+  updateSessionStat();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PROGRESS
+══════════════════════════════════════════════════════════════════ */
+function renderProgress() {
+  const good = [], bad = [];
+  for (const [word, p] of Object.entries(progress)) {
+    const total = (p.correct || 0) + (p.wrong || 0);
+    if (total === 0) continue;
+    const rate = p.correct / total;
+    if (rate >= 0.6) good.push(word);
+    else bad.push(word);
+  }
+
+  const goodEl = document.getElementById('good-words-list');
+  const badEl = document.getElementById('bad-words-list');
+
+  goodEl.innerHTML = good.length
+    ? good.map(w => `<span class="word-pill good">${escHtml(w)}</span>`).join('')
+    : '<div class="empty-state" style="padding:.5rem">No words yet.</div>';
+
+  badEl.innerHTML = bad.length
+    ? bad.map(w => `<span class="word-pill bad">${escHtml(w)}</span>`).join('')
+    : '<div class="empty-state" style="padding:.5rem">No words yet.</div>';
+}
+
+function clearProgress() {
+  if (!confirm('Reset all your training progress for this language?')) return;
+  progress = {};
+  saveProgress();
+  renderProgress();
+  updateSessionStat();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════════════ */
+function escHtml(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+version: "3.9"
+# ─────────────────────────────────────────────────────────────────────────────
+# Local development with Firestore emulator
+# Run: docker-compose up --build
+# App:      http://localhost:8080
+# Emulator: http://localhost:8200
+# ─────────────────────────────────────────────────────────────────────────────
+services:
+  firestore-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8200"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8200
+      - GCP_PROJECT=local-dev
+      - LINGUAFORGE_USER=default
+    depends_on:
+      firestore-emulator:
+        condition: service_healthy
