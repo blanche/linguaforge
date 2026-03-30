@@ -281,6 +281,26 @@ def list_languages():
 
 
 
+@app.get("/api/vocab/due")
+def get_due_vocab(language: Optional[str] = None, limit: int = 50):
+    today = _today()
+    q = _vocab_col()
+    if language:
+        q = q.where("language_to", "==", language)
+    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
+    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
+
+    due = []
+    for vid, v in vocab.items():
+        s = stats.get(vid, {})
+        due_date = s.get("due_date") or today
+        if due_date <= today:
+            due.append({**v, **s, "id": vid})
+
+    due.sort(key=lambda x: x.get("due_date") or today)
+    return due[:limit]
+
+
 @app.get("/api/vocab/weak")
 def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
     q = _vocab_col()
