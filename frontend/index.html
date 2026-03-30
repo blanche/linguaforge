@@ -820,7 +820,10 @@ body.nav-open { overflow: hidden; }
         <p>Edit translations and language codes — training progress stays on each word when you save</p>
       </div>
       <div class="import-section">
-        <div class="vocab-filters" id="manage-vocab-filters"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+          <div class="vocab-filters" id="manage-vocab-filters"></div>
+          <button class="btn btn-ghost btn-sm" style="color:var(--accent2);border-color:var(--accent2);" onclick="clearAllVocab()">Clear All</button>
+        </div>
         <div id="manage-vocab-list-wrap"></div>
       </div>
     </div>
@@ -1178,6 +1181,18 @@ async function deleteManageWord(btn) {
   }
 }
 
+async function clearAllVocab() {
+  if (!confirm('Delete ALL vocabulary? This cannot be undone.')) return;
+  if (!confirm('Are you sure? All words and training progress will be permanently deleted.')) return;
+  try {
+    await api('/api/vocab', { method: 'DELETE' });
+    toast('All vocabulary cleared', 'info');
+    loadManageVocabList(manageVocabLang);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
 async function loadWeakList() {
   const words = await api('/api/vocab/weak?limit=50');
   document.getElementById('weak-list-wrap').innerHTML = words.length
@@ -1499,7 +1514,10 @@ async function importPasted() {
   if (!items.length) { toast('Could not parse any lines. Use "word = translation" format.', 'error'); return; }
   
   const data = await api('/api/vocab/bulk', { method: 'POST', body: JSON.stringify({ items, source: 'manual' }) });
-  toast(`Imported ${data.imported} words!`, 'success');
+  const msg = data.skipped > 0
+    ? `Imported ${data.imported} words (skipped ${data.skipped} duplicates)`
+    : `Imported ${data.imported} words`;
+  toast(msg, data.imported > 0 ? 'success' : 'info');
   document.getElementById('paste-area').value = '';
   refreshManageVocabIfVisible();
 }

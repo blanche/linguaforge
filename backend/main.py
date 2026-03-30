@@ -353,13 +353,15 @@ def add_vocab(item: VocabItem):
 
 @app.post("/api/vocab/bulk")
 def add_vocab_bulk(payload: VocabBulk):
-    imported = 0
+    imported = skipped = 0
     for item in payload.items:
         _, created = _upsert_word(item.word, item.translation,
                                   item.language_from, item.language_to, payload.source)
         if created:
             imported += 1
-    return {"imported": imported}
+        else:
+            skipped += 1
+    return {"imported": imported, "skipped": skipped}
 
 
 @app.delete("/api/vocab/{vocab_id}")
@@ -369,6 +371,19 @@ def delete_vocab(vocab_id: str):
     for d in _perf_col().where("vocab_id", "==", vocab_id).stream():
         d.reference.delete()
     return {"status": "deleted"}
+
+
+@app.delete("/api/vocab")
+def clear_all_vocab():
+    deleted = 0
+    for d in _vocab_col().stream():
+        d.reference.delete()
+        deleted += 1
+    for d in _stats_col().stream():
+        d.reference.delete()
+    for d in _perf_col().stream():
+        d.reference.delete()
+    return {"status": "cleared", "deleted": deleted}
 
 
 @app.patch("/api/vocab/{vocab_id}")
