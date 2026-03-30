@@ -280,25 +280,6 @@ def list_languages():
     return [{"language_to": k, "count": v} for k, v in sorted(counts.items())]
 
 
-@app.get("/api/vocab/due")
-def get_due_vocab(language: Optional[str] = None, limit: int = 20):
-    today = _today()
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
-    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
-
-    due = []
-    for vid, v in vocab.items():
-        s = stats.get(vid, {})
-        if (s.get("due_date") or today) <= today:
-            due.append({**v, **s, "id": vid})
-
-    due.sort(key=lambda x: (x.get("ease_factor", 2.5), -(x.get("wrong_count") or 0)))
-    random.shuffle(due)
-    return due[:limit]
-
 
 @app.get("/api/vocab/weak")
 def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
@@ -401,10 +382,17 @@ def record_answer(payload: AnswerPayload):
     correct  = s.get("correct_count", 0)
     wrong    = s.get("wrong_count", 0)
 
+    last_seen = s.get("last_seen")
+    if last_seen:
+        days_elapsed = (date.today() - date.fromisoformat(last_seen[:10])).days
+    else:
+        days_elapsed = interval
+
     if payload.correct:
         correct += 1
         ef = max(1.3, ef + 0.1 - 0 * (0.08))  # q=5 simplification
-        new_interval = 1 if interval == 1 else (6 if interval <= 6 else round(interval * ef))
+        base = max(interval, days_elapsed)
+        new_interval = 1 if base == 1 else (6 if base <= 6 else round(base * ef))
     else:
         wrong += 1
         new_interval = 1
@@ -424,28 +412,19 @@ def record_answer(payload: AnswerPayload):
 
 @app.get("/api/stats/overview")
 def stats_overview():
-    today = _today()
     vocab_count = sum(1 for _ in _vocab_col().stream())
 
-    due = mastered = struggling = 0
+    mastered = struggling = 0
     for d in _stats_col().stream():
         s = d.to_dict()
-        if (s.get("due_date") or today) <= today:
-            due += 1
         if (s.get("correct_count") or 0) >= 5 and (s.get("ease_factor") or 0) >= 2.5:
             mastered += 1
         total = (s.get("correct_count") or 0) + (s.get("wrong_count") or 0)
         if total >= 3 and (s.get("wrong_count") or 0) > (s.get("correct_count") or 0):
             struggling += 1
 
-    yesterday = (datetime.utcnow() - timedelta(days=1)).isoformat()
-    reviewed_today = sum(
-        1 for _ in _perf_col().where("answered_at", ">=", yesterday).stream()
-    )
-
     return {
-        "total": vocab_count, "due": due, "mastered": mastered,
-        "struggling": struggling, "reviewed_today": reviewed_today,
+        "total": vocab_count, "mastered": mastered, "struggling": struggling,
     }
 
 

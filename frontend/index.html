@@ -631,10 +631,6 @@ body.nav-open { overflow: hidden; }
           <div class="val" id="stat-total">–</div>
           <div class="lbl">Total Words</div>
         </div>
-        <div class="stat-card" style="--c: var(--accent4)">
-          <div class="val" id="stat-due">–</div>
-          <div class="lbl">Due Today</div>
-        </div>
         <div class="stat-card" style="--c: var(--accent3)">
           <div class="val" id="stat-mastered">–</div>
           <div class="lbl">Mastered</div>
@@ -642,10 +638,6 @@ body.nav-open { overflow: hidden; }
         <div class="stat-card" style="--c: var(--accent2)">
           <div class="val" id="stat-struggling">–</div>
           <div class="lbl">Struggling</div>
-        </div>
-        <div class="stat-card" style="--c: #a78bff">
-          <div class="val" id="stat-today">–</div>
-          <div class="lbl">Reviewed Today</div>
         </div>
       </div>
 
@@ -1019,18 +1011,12 @@ async function loadDashboard() {
   try {
     const stats = await api('/api/stats/overview');
     document.getElementById('stat-total').textContent = stats.total;
-    document.getElementById('stat-due').textContent = stats.due;
     document.getElementById('stat-mastered').textContent = stats.mastered;
     document.getElementById('stat-struggling').textContent = stats.struggling;
-    document.getElementById('stat-today').textContent = stats.reviewed_today;
 
     const cta = document.getElementById('dashboard-cta');
     if (stats.total === 0) {
       cta.innerHTML = `<div class="streak-banner">👋 Welcome! Use <a onclick="nav('import')" style="color:var(--accent);cursor:pointer;text-decoration:underline">Import</a> to add words, or <a onclick="nav('vocab')" style="color:var(--accent);cursor:pointer;text-decoration:underline">All words</a> to browse and edit.</div>`;
-    } else if (stats.due > 0) {
-      cta.innerHTML = `<div class="streak-banner">📅 You have <strong style="color:var(--accent4)">${stats.due} words</strong> due for review today! <a onclick="nav('train')" style="color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:8px">Start training →</a></div>`;
-    } else {
-      cta.innerHTML = `<div class="streak-banner">✅ All caught up for today! Come back tomorrow for your next review session.</div>`;
     }
 
     // Weak preview
