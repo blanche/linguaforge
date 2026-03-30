@@ -833,8 +833,9 @@ select option { background: var(--surface2); }
 
       <div id="trainer-session" style="display:none">
         <div class="trainer-wrap">
-          <div class="trainer-meta">
-            <span id="trainer-progress-label">0 / 0</span> · click card to reveal
+          <div class="trainer-meta" style="display:flex;justify-content:space-between;align-items:center;width:100%;max-width:500px">
+            <span><span id="trainer-progress-label">0 / 0</span> · click card to reveal</span>
+            <button class="btn-wrong" onclick="finishSession()" style="padding:0.25rem 0.75rem;font-size:0.75rem">■ Stop</button>
           </div>
           <div class="trainer-progress">
             <div class="trainer-progress-fill" id="trainer-bar" style="width:0%"></div>
@@ -862,7 +863,7 @@ select option { background: var(--surface2); }
         <div class="session-summary">
           <h2>Session Complete!</h2>
           <div class="session-score" id="done-score">—</div>
-          <div class="session-score-label">correct / total</div>
+          <div class="session-score-label">correct / words reviewed</div>
           <div style="font-size:0.8rem;color:var(--text2);margin-bottom:1.5rem" id="done-msg"></div>
           <button class="btn btn-primary" onclick="startTrainer(currentTrainerMode)">Train Again</button>
         </div>
@@ -910,6 +911,7 @@ let currentSort = { key: 'strength', asc: true };
 let trainerQueue = [];
 let trainerIdx = 0;
 let trainerCorrect = 0;
+let trainerTotal = 0;
 let trainerFlipped = false;
 let trainerTranslations = {};  // cache
 let currentTrainerMode = 'weak';
@@ -1171,6 +1173,7 @@ function startTrainer(mode) {
   trainerQueue = words;
   trainerIdx = 0;
   trainerCorrect = 0;
+  trainerTotal = 0;
   trainerFlipped = false;
 
   document.getElementById('trainer-start').style.display = 'none';
@@ -1180,10 +1183,18 @@ function startTrainer(mode) {
   showTrainerCard();
 }
 
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
 function showTrainerCard() {
   if (trainerIdx >= trainerQueue.length) {
-    finishSession();
-    return;
+    // Loop: reshuffle and restart the queue
+    shuffleArray(trainerQueue);
+    trainerIdx = 0;
   }
   const word = trainerQueue[trainerIdx];
   trainerFlipped = false;
@@ -1195,10 +1206,11 @@ function showTrainerCard() {
   document.getElementById('card-pos').textContent = [word.pos, word.gender, word.infinitive ? `inf: ${word.infinitive}` : ''].filter(Boolean).join(' · ');
   document.getElementById('trainer-btns').style.display = 'none';
 
-  // Update progress bar
+  // Update progress bar (shows position within current cycle)
   const pct = Math.round(trainerIdx / trainerQueue.length * 100);
   document.getElementById('trainer-bar').style.width = pct + '%';
-  document.getElementById('trainer-progress-label').textContent = `${trainerIdx + 1} / ${trainerQueue.length}`;
+  const totalLabel = trainerTotal > 0 ? ` · ${trainerTotal} done` : '';
+  document.getElementById('trainer-progress-label').textContent = `${trainerIdx + 1} / ${trainerQueue.length}${totalLabel}`;
 
   // Fetch translation if not cached
   if (!trainerTranslations[word.word]) {
@@ -1244,17 +1256,18 @@ function markWord(correct) {
   else { progress[word.word].wrong++; }
   saveProgress();
   trainerIdx++;
+  trainerTotal++;
   showTrainerCard();
 }
 
 function finishSession() {
   document.getElementById('trainer-session').style.display = 'none';
   document.getElementById('trainer-done').style.display = 'flex';
-  const total = trainerQueue.length;
+  const total = trainerTotal;
   document.getElementById('done-score').textContent = `${trainerCorrect}/${total}`;
-  const pct = Math.round(trainerCorrect / total * 100);
+  const pct = total > 0 ? Math.round(trainerCorrect / total * 100) : 0;
   const msgs = ['Keep going! Practice makes perfect.', 'Getting there!', 'Good work!', 'Great session!', 'Excellent! 🎉'];
-  document.getElementById('done-msg').textContent = msgs[Math.min(4, Math.floor(pct / 20))];
+  document.getElementById('done-msg').textContent = total === 0 ? 'No words reviewed.' : msgs[Math.min(4, Math.floor(pct / 20))];
   updateSessionStat();
 }
 
