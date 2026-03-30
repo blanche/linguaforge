@@ -1,18 +1,16 @@
 """
-LinguaForge backend — FastAPI + Google Cloud Firestore
-Storage layout (all under collection "users/{user_id}/"):
-  vocabulary/{doc_id}  — word, translation, language_from, language_to, source, created_at
-  stats/{doc_id}       — correct_count, wrong_count, ease_factor, interval_days, due_date, last_seen
-  performance/{auto}   — vocab_id, correct, mode, answered_at
-
-USER_ID is read from the LINGUAFORGE_USER env var (default "default").
-For a multi-user setup, replace this with real auth.
+LinguaForge backend — FastAPI + SQLite
+Storage layout:
+  vocabulary  — id, word, translation, language_from, language_to, source, created_at
+  stats       — vocab_id, correct_count, wrong_count, ease_factor, interval_days, due_date, last_seen
+  performance — id, vocab_id, correct, mode, answered_at
 """
 
 from __future__ import annotations
 
 import os
 import random
+import sqlite3
 import uuid
 from contextlib import asynccontextmanager
 from datetime import date, datetime, timedelta
@@ -23,26 +21,49 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from google.cloud import firestore
 from pydantic import BaseModel
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-GCP_PROJECT = os.environ.get("GCP_PROJECT")          # auto-detected on Cloud Run
-USER_ID     = os.environ.get("LINGUAFORGE_USER", "default")
+DB_PATH = Path(os.environ.get("LINGUAFORGE_DB", "/data/linguaforge.db"))
 
-# ── Firestore client ──────────────────────────────────────────────────────────
+# ── Database helpers ──────────────────────────────────────────────────────────
 
-db: firestore.Client = None   # initialised in lifespan
+def _get_db() -> sqlite3.Connection:
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-def _vocab_col():
-    return db.collection("users").document(USER_ID).collection("vocabulary")
-
-def _stats_col():
-    return db.collection("users").document(USER_ID).collection("stats")
-
-def _perf_col():
-    return db.collection("users").document(USER_ID).collection("performance")
+def _init_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with _get_db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS vocabulary (
+                id            TEXT PRIMARY KEY,
+                word          TEXT NOT NULL,
+                translation   TEXT NOT NULL DEFAULT '',
+                language_from TEXT NOT NULL DEFAULT 'en',
+                language_to   TEXT NOT NULL DEFAULT 'unknown',
+                source        TEXT NOT NULL DEFAULT 'manual',
+                created_at    TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS stats (
+                vocab_id      TEXT PRIMARY KEY REFERENCES vocabulary(id),
+                correct_count INTEGER NOT NULL DEFAULT 0,
+                wrong_count   INTEGER NOT NULL DEFAULT 0,
+                ease_factor   REAL    NOT NULL DEFAULT 2.5,
+                interval_days INTEGER NOT NULL DEFAULT 1,
+                due_date      TEXT    NOT NULL,
+                last_seen     TEXT
+            );
+            CREATE TABLE IF NOT EXISTS performance (
+                id          TEXT PRIMARY KEY,
+                vocab_id    TEXT NOT NULL,
+                correct     INTEGER NOT NULL,
+                mode        TEXT NOT NULL DEFAULT 'flashcard',
+                answered_at TEXT NOT NULL
+            );
+        """)
 
 def _today() -> str:
     return date.today().isoformat()
@@ -50,20 +71,11 @@ def _today() -> str:
 def _due_date(interval_days: int) -> str:
     return (date.today() + timedelta(days=interval_days)).isoformat()
 
-def _doc_to_dict(doc: firestore.DocumentSnapshot) -> dict:
-    d = doc.to_dict() or {}
-    d["id"] = doc.id
-    for k, v in d.items():
-        if hasattr(v, "isoformat"):
-            d[k] = v.isoformat()
-    return d
-
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db
-    db = firestore.Client(project=GCP_PROJECT)
+    _init_db()
     yield
 
 app = FastAPI(lifespan=lifespan)
@@ -83,16 +95,14 @@ class VocabBulk(BaseModel):
     items: list[VocabItem]
     source: str = "manual"
 
-
 class VocabUpdate(BaseModel):
     word: str
     translation: str = ""
     language_from: str = "en"
     language_to: str = "unknown"
 
-
 class AnswerPayload(BaseModel):
-    vocab_id: str          # Firestore document id (string)
+    vocab_id: str
     correct: bool
     mode: str = "flashcard"
 
@@ -182,34 +192,26 @@ async def _duo_fetch_vocab(user_id: int, jwt: str) -> list[dict]:
 def _upsert_word(word: str, translation: str, language_from: str,
                  language_to: str, source: str) -> tuple[str, bool]:
     """Returns (doc_id, created). Skips duplicates."""
-    existing = (
-        _vocab_col()
-        .where("word", "==", word)
-        .where("language_to", "==", language_to)
-        .limit(1)
-        .get()
-    )
-    if existing:
-        return existing[0].id, False
+    with _get_db() as conn:
+        existing = conn.execute(
+            "SELECT id FROM vocabulary WHERE word = ? AND language_to = ? LIMIT 1",
+            (word, language_to)
+        ).fetchone()
+        if existing:
+            return existing["id"], False
 
-    doc_id = str(uuid.uuid4())
-    _vocab_col().document(doc_id).set({
-        "word": word,
-        "translation": translation,
-        "language_from": language_from,
-        "language_to": language_to,
-        "source": source,
-        "created_at": datetime.utcnow().isoformat(),
-    })
-    _stats_col().document(doc_id).set({
-        "correct_count": 0,
-        "wrong_count": 0,
-        "ease_factor": 2.5,
-        "interval_days": 1,
-        "due_date": _today(),
-        "last_seen": None,
-    })
-    return doc_id, True
+        doc_id = str(uuid.uuid4())
+        conn.execute(
+            "INSERT INTO vocabulary (id, word, translation, language_from, language_to, source, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (doc_id, word, translation, language_from, language_to, source, datetime.utcnow().isoformat())
+        )
+        conn.execute(
+            "INSERT INTO stats (vocab_id, correct_count, wrong_count, ease_factor, interval_days, due_date, last_seen) "
+            "VALUES (?, 0, 0, 2.5, 1, ?, NULL)",
+            (doc_id, _today())
+        )
+        return doc_id, True
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -254,93 +256,101 @@ async def sync_duolingo(payload: DuolingoSync):
 
 @app.get("/api/vocab")
 def list_vocab(language: Optional[str] = None):
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
-    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
-
-    result = []
-    for vid, v in vocab.items():
-        s = stats.get(vid, {})
-        result.append({**v, "correct_count": s.get("correct_count", 0),
-                        "wrong_count": s.get("wrong_count", 0),
-                        "ease_factor": s.get("ease_factor", 2.5),
-                        "due_date": s.get("due_date")})
-    result.sort(key=lambda x: x.get("word", "").lower())
-    return result
+    with _get_db() as conn:
+        if language:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE v.language_to = ? ORDER BY lower(v.word)",
+                (language,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "ORDER BY lower(v.word)"
+            ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @app.get("/api/vocab/languages")
 def list_languages():
-    counts: dict[str, int] = {}
-    for d in _vocab_col().stream():
-        lang = (d.to_dict() or {}).get("language_to", "unknown")
-        counts[lang] = counts.get(lang, 0) + 1
-    return [{"language_to": k, "count": v} for k, v in sorted(counts.items())]
-
+    with _get_db() as conn:
+        rows = conn.execute(
+            "SELECT language_to, COUNT(*) as count FROM vocabulary GROUP BY language_to ORDER BY language_to"
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @app.get("/api/vocab/due")
 def get_due_vocab(language: Optional[str] = None, limit: int = 50):
     today = _today()
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
-    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
-
-    due = []
-    for vid, v in vocab.items():
-        s = stats.get(vid, {})
-        due_date = s.get("due_date") or today
-        if due_date <= today:
-            due.append({**v, **s, "id": vid})
-
-    due.sort(key=lambda x: x.get("due_date") or today)
-    return due[:limit]
+    with _get_db() as conn:
+        if language:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.interval_days, s.due_date, s.last_seen "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE v.language_to = ? AND (s.due_date IS NULL OR s.due_date <= ?) "
+                "ORDER BY s.due_date LIMIT ?",
+                (language, today, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.interval_days, s.due_date, s.last_seen "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE s.due_date IS NULL OR s.due_date <= ? "
+                "ORDER BY s.due_date LIMIT ?",
+                (today, limit)
+            ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @app.get("/api/vocab/weak")
 def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
-    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
-
-    weak = []
-    for vid, v in vocab.items():
-        s = stats.get(vid, {})
-        total = (s.get("correct_count") or 0) + (s.get("wrong_count") or 0)
-        if total == 0:
-            continue
-        acc = (s.get("correct_count") or 0) / total
-        weak.append({**v, **s, "id": vid, "accuracy": acc})
-
-    weak.sort(key=lambda x: (x["accuracy"], -(x.get("wrong_count") or 0)))
-    return weak[:limit]
+    with _get_db() as conn:
+        if language:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date, "
+                "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE v.language_to = ? AND (s.correct_count + s.wrong_count) > 0 "
+                "ORDER BY accuracy ASC, s.wrong_count DESC LIMIT ?",
+                (language, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date, "
+                "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE (s.correct_count + s.wrong_count) > 0 "
+                "ORDER BY accuracy ASC, s.wrong_count DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @app.get("/api/vocab/strong")
 def get_strong_vocab(language: Optional[str] = None, limit: int = 50):
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    vocab = {d.id: _doc_to_dict(d) for d in q.stream()}
-    stats = {d.id: d.to_dict() for d in _stats_col().stream()}
-
-    strong = []
-    for vid, v in vocab.items():
-        s = stats.get(vid, {})
-        total = (s.get("correct_count") or 0) + (s.get("wrong_count") or 0)
-        if total < 3:
-            continue
-        acc = (s.get("correct_count") or 0) / total
-        strong.append({**v, **s, "id": vid, "accuracy": acc})
-
-    strong.sort(key=lambda x: (-x["accuracy"], -(x.get("correct_count") or 0)))
-    return strong[:limit]
+    with _get_db() as conn:
+        if language:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date, "
+                "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE v.language_to = ? AND (s.correct_count + s.wrong_count) >= 3 "
+                "ORDER BY accuracy DESC, s.correct_count DESC LIMIT ?",
+                (language, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.due_date, "
+                "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
+                "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
+                "WHERE (s.correct_count + s.wrong_count) >= 3 "
+                "ORDER BY accuracy DESC, s.correct_count DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+    return [dict(r) for r in rows]
 
 
 @app.post("/api/vocab")
@@ -366,123 +376,126 @@ def add_vocab_bulk(payload: VocabBulk):
 
 @app.delete("/api/vocab/{vocab_id}")
 def delete_vocab(vocab_id: str):
-    _vocab_col().document(vocab_id).delete()
-    _stats_col().document(vocab_id).delete()
-    for d in _perf_col().where("vocab_id", "==", vocab_id).stream():
-        d.reference.delete()
+    with _get_db() as conn:
+        conn.execute("DELETE FROM performance WHERE vocab_id = ?", (vocab_id,))
+        conn.execute("DELETE FROM stats WHERE vocab_id = ?", (vocab_id,))
+        conn.execute("DELETE FROM vocabulary WHERE id = ?", (vocab_id,))
     return {"status": "deleted"}
 
 
 @app.delete("/api/vocab")
 def clear_all_vocab():
-    deleted = 0
-    for d in _vocab_col().stream():
-        d.reference.delete()
-        deleted += 1
-    for d in _stats_col().stream():
-        d.reference.delete()
-    for d in _perf_col().stream():
-        d.reference.delete()
+    with _get_db() as conn:
+        deleted = conn.execute("SELECT COUNT(*) FROM vocabulary").fetchone()[0]
+        conn.execute("DELETE FROM performance")
+        conn.execute("DELETE FROM stats")
+        conn.execute("DELETE FROM vocabulary")
     return {"status": "cleared", "deleted": deleted}
 
 
 @app.patch("/api/vocab/{vocab_id}")
 def update_vocab(vocab_id: str, item: VocabUpdate):
-    ref = _vocab_col().document(vocab_id)
-    if not ref.get().exists:
-        raise HTTPException(status_code=404, detail="Word not found")
-    ref.update({
-        "word": item.word.strip(),
-        "translation": (item.translation or "").strip(),
-        "language_from": (item.language_from or "en").strip() or "en",
-        "language_to": (item.language_to or "unknown").strip() or "unknown",
-    })
+    with _get_db() as conn:
+        existing = conn.execute("SELECT id FROM vocabulary WHERE id = ?", (vocab_id,)).fetchone()
+        if not existing:
+            raise HTTPException(status_code=404, detail="Word not found")
+        conn.execute(
+            "UPDATE vocabulary SET word = ?, translation = ?, language_from = ?, language_to = ? WHERE id = ?",
+            (item.word.strip(), (item.translation or "").strip(),
+             (item.language_from or "en").strip() or "en",
+             (item.language_to or "unknown").strip() or "unknown",
+             vocab_id)
+        )
     return {"status": "updated"}
 
 
 @app.post("/api/answer")
 def record_answer(payload: AnswerPayload):
-    _perf_col().add({
-        "vocab_id": payload.vocab_id,
-        "correct": payload.correct,
-        "mode": payload.mode,
-        "answered_at": datetime.utcnow().isoformat(),
-    })
+    with _get_db() as conn:
+        conn.execute(
+            "INSERT INTO performance (id, vocab_id, correct, mode, answered_at) VALUES (?, ?, ?, ?, ?)",
+            (str(uuid.uuid4()), payload.vocab_id, int(payload.correct), payload.mode,
+             datetime.utcnow().isoformat())
+        )
 
-    stats_ref = _stats_col().document(payload.vocab_id)
-    s = (stats_ref.get().to_dict() or {})
+        row = conn.execute("SELECT * FROM stats WHERE vocab_id = ?", (payload.vocab_id,)).fetchone()
+        s = dict(row) if row else {
+            "correct_count": 0, "wrong_count": 0, "ease_factor": 2.5,
+            "interval_days": 1, "due_date": _today(), "last_seen": None,
+        }
 
-    ef       = s.get("ease_factor", 2.5)
-    interval = s.get("interval_days", 1)
-    correct  = s.get("correct_count", 0)
-    wrong    = s.get("wrong_count", 0)
+        ef       = s.get("ease_factor", 2.5)
+        interval = s.get("interval_days", 1)
+        correct  = s.get("correct_count", 0)
+        wrong    = s.get("wrong_count", 0)
 
-    last_seen = s.get("last_seen")
-    if last_seen:
-        days_elapsed = (date.today() - date.fromisoformat(last_seen[:10])).days
-    else:
-        days_elapsed = interval
+        last_seen = s.get("last_seen")
+        if last_seen:
+            days_elapsed = (date.today() - date.fromisoformat(last_seen[:10])).days
+        else:
+            days_elapsed = interval
 
-    if payload.correct:
-        correct += 1
-        ef = max(1.3, ef + 0.1 - 0 * (0.08))  # q=5 simplification
-        base = max(interval, days_elapsed)
-        new_interval = 1 if base == 1 else (6 if base <= 6 else round(base * ef))
-    else:
-        wrong += 1
-        new_interval = 1
-        ef = max(1.3, ef - 0.2)
+        if payload.correct:
+            correct += 1
+            ef = max(1.3, ef + 0.1 - 0 * (0.08))  # q=5 simplification
+            base = max(interval, days_elapsed)
+            new_interval = 1 if base == 1 else (6 if base <= 6 else round(base * ef))
+        else:
+            wrong += 1
+            new_interval = 1
+            ef = max(1.3, ef - 0.2)
 
-    stats_ref.set({
-        "correct_count": correct,
-        "wrong_count": wrong,
-        "ease_factor": ef,
-        "interval_days": new_interval,
-        "due_date": _due_date(new_interval),
-        "last_seen": datetime.utcnow().isoformat(),
-    }, merge=True)
+        conn.execute(
+            "INSERT INTO stats (vocab_id, correct_count, wrong_count, ease_factor, interval_days, due_date, last_seen) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(vocab_id) DO UPDATE SET "
+            "correct_count = excluded.correct_count, wrong_count = excluded.wrong_count, "
+            "ease_factor = excluded.ease_factor, interval_days = excluded.interval_days, "
+            "due_date = excluded.due_date, last_seen = excluded.last_seen",
+            (payload.vocab_id, correct, wrong, ef, new_interval,
+             _due_date(new_interval), datetime.utcnow().isoformat())
+        )
 
     return {"status": "recorded"}
 
 
 @app.get("/api/stats/overview")
 def stats_overview():
-    vocab_count = sum(1 for _ in _vocab_col().stream())
-
-    mastered = struggling = 0
-    for d in _stats_col().stream():
-        s = d.to_dict()
-        if (s.get("correct_count") or 0) >= 5 and (s.get("ease_factor") or 0) >= 2.5:
-            mastered += 1
-        total = (s.get("correct_count") or 0) + (s.get("wrong_count") or 0)
-        if total >= 3 and (s.get("wrong_count") or 0) > (s.get("correct_count") or 0):
-            struggling += 1
-
-    return {
-        "total": vocab_count, "mastered": mastered, "struggling": struggling,
-    }
+    with _get_db() as conn:
+        vocab_count = conn.execute("SELECT COUNT(*) FROM vocabulary").fetchone()[0]
+        mastered = conn.execute(
+            "SELECT COUNT(*) FROM stats WHERE correct_count >= 5 AND ease_factor >= 2.5"
+        ).fetchone()[0]
+        struggling = conn.execute(
+            "SELECT COUNT(*) FROM stats WHERE (correct_count + wrong_count) >= 3 AND wrong_count > correct_count"
+        ).fetchone()[0]
+    return {"total": vocab_count, "mastered": mastered, "struggling": struggling}
 
 
 @app.get("/api/quiz/choices")
 def get_choices(vocab_id: str, language: Optional[str] = None):
-    doc = _vocab_col().document(vocab_id).get()
-    if not doc.exists:
-        raise HTTPException(status_code=404, detail="Word not found")
-    correct_trans = (doc.to_dict() or {}).get("translation", "")
+    with _get_db() as conn:
+        doc = conn.execute(
+            "SELECT translation FROM vocabulary WHERE id = ?", (vocab_id,)
+        ).fetchone()
+        if not doc:
+            raise HTTPException(status_code=404, detail="Word not found")
+        correct_trans = doc["translation"]
 
-    q = _vocab_col()
-    if language:
-        q = q.where("language_to", "==", language)
-    all_docs = list(q.limit(100).stream())
-    random.shuffle(all_docs)
+        if language:
+            all_rows = conn.execute(
+                "SELECT translation FROM vocabulary WHERE language_to = ? AND id != ? LIMIT 100",
+                (language, vocab_id)
+            ).fetchall()
+        else:
+            all_rows = conn.execute(
+                "SELECT translation FROM vocabulary WHERE id != ? LIMIT 100",
+                (vocab_id,)
+            ).fetchall()
 
-    distractors: list[str] = []
-    for d in all_docs:
-        t = (d.to_dict() or {}).get("translation", "")
-        if t and t != correct_trans and t not in distractors:
-            distractors.append(t)
-        if len(distractors) == 3:
-            break
+    translations = [r["translation"] for r in all_rows if r["translation"] and r["translation"] != correct_trans]
+    random.shuffle(translations)
+    distractors = list(dict.fromkeys(translations))[:3]
 
     choices = distractors + [correct_trans]
     random.shuffle(choices)
