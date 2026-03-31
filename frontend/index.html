@@ -8,17 +8,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0d0f14;
-  --surface: #161923;
-  --surface2: #1e2433;
-  --border: #2a3047;
-  --accent: #5b7cff;
+  --bg: #0a0f0c;
+  --surface: #131e16;
+  --surface2: #1b2820;
+  --border: #27382d;
+  --accent: #3ddc84;
   --accent2: #ff6b6b;
   --accent3: #2ecc88;
   --accent4: #f5c842;
-  --text: #e8eaf2;
-  --text2: #8b91aa;
-  --text3: #555e7a;
+  --text: #e8f2eb;
+  --text2: #7aaa8a;
+  --text3: #4a6655;
   --radius: 16px;
   --radius-sm: 10px;
 }
@@ -56,7 +56,7 @@ body {
   font-weight: 800;
   font-size: 20px;
   letter-spacing: -0.5px;
-  background: linear-gradient(135deg, var(--accent), #a78bff);
+  background: linear-gradient(135deg, var(--accent), #5ef5a0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -76,7 +76,7 @@ body {
   margin: 1px 0;
 }
 .nav-item:hover { background: var(--surface2); color: var(--text); }
-.nav-item.active { background: rgba(91,124,255,0.1); color: var(--accent); border-left-color: var(--accent); }
+.nav-item.active { background: rgba(61,220,132,0.1); color: var(--accent); border-left-color: var(--accent); }
 .nav-item .icon { font-size: 18px; width: 22px; text-align: center; }
 
 .nav-section-label {
@@ -152,7 +152,7 @@ body {
 }
 .mode-card:hover, .mode-card.selected {
   border-color: var(--accent);
-  background: rgba(91,124,255,0.08);
+  background: rgba(61,220,132,0.08);
 }
 .mode-card .emoji { font-size: 36px; margin-bottom: 12px; }
 .mode-card h3 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; }
@@ -237,7 +237,7 @@ body {
   color: var(--text);
   text-align: center;
 }
-.mc-choice:hover:not(.disabled) { border-color: var(--accent); background: rgba(91,124,255,0.08); }
+.mc-choice:hover:not(.disabled) { border-color: var(--accent); background: rgba(61,220,132,0.08); }
 .mc-choice.correct { border-color: var(--accent3); background: rgba(46,204,136,0.12); color: var(--accent3); }
 .mc-choice.wrong { border-color: var(--accent2); background: rgba(255,107,107,0.12); color: var(--accent2); }
 .mc-choice.disabled { cursor: default; }
@@ -280,7 +280,7 @@ body {
 }
 .session-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), #a78bff);
+  background: linear-gradient(90deg, var(--accent), #5ef5a0);
   border-radius: 99px;
   transition: width 0.4s;
 }
@@ -299,8 +299,8 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #4a6be8; transform: translateY(-1px); }
+.btn-primary { background: var(--accent); color: #0a1a10; }
+.btn-primary:hover { background: #5ef5a0; transform: translateY(-1px); box-shadow: 0 0 16px rgba(61,220,132,0.35); }
 .btn-success { background: var(--accent3); color: #fff; }
 .btn-danger { background: var(--accent2); color: #fff; }
 .btn-ghost { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
@@ -326,7 +326,7 @@ body {
   transition: all 0.15s;
   font-family: 'DM Sans', sans-serif;
 }
-.filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(91,124,255,0.08); }
+.filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(61,220,132,0.08); }
 
 .vocab-table { width: 100%; border-collapse: collapse; }
 .vocab-table th {
@@ -372,7 +372,7 @@ body {
   font-size: 11px;
   font-family: 'DM Mono', monospace;
 }
-.badge-new { background: rgba(91,124,255,0.15); color: var(--accent); }
+.badge-new { background: rgba(61,220,132,0.15); color: var(--accent); }
 .badge-strong { background: rgba(46,204,136,0.15); color: var(--accent3); }
 .badge-weak { background: rgba(255,107,107,0.15); color: var(--accent2); }
 .badge-learning { background: rgba(245,200,66,0.15); color: var(--accent4); }
@@ -547,8 +547,8 @@ body.nav-open { overflow: hidden; }
 .empty-state h3 { font-family: 'Syne', sans-serif; font-weight: 700; margin-bottom: 8px; color: var(--text); }
 
 .streak-banner {
-  background: linear-gradient(135deg, rgba(91,124,255,0.15), rgba(167,139,255,0.1));
-  border: 1px solid rgba(91,124,255,0.3);
+  background: linear-gradient(135deg, rgba(61,220,132,0.15), rgba(94,245,160,0.07));
+  border: 1px solid rgba(61,220,132,0.3);
   border-radius: var(--radius);
   padding: 16px 20px;
   margin-bottom: 24px;

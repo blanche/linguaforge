@@ -4,13 +4,26 @@ version: "3.9"
 services:
   app:
     build: .
-    ports:
-      - "8080:8080"
     volumes:
       - linguaforge-data:/data
     restart: unless-stopped
     environment:
       - LINGUAFORGE_DB=/data/linguaforge.db
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.linguaforge.rule=Host(`linguaforge.0x79.com`)"
+      - "traefik.http.routers.linguaforge.entrypoints=websecure"
+      - "traefik.http.routers.linguaforge.tls.certresolver=myresolver"
+      - "traefik.http.services.linguaforge.loadbalancer.server.port=8080"
+      - "traefik.http.middlewares.linguaforge-auth.basicauth.users=lukas:$$apr1$$pR0GDBXG$$6S8OPE15o1M6Vg344huP/1"
+      - "traefik.http.routers.linguaforge.middlewares=linguaforge-auth"
+    networks:
+      - traefik
 
 volumes:
   linguaforge-data:
+
+networks:
+  traefik:
+    external: true
+    name: traefik
