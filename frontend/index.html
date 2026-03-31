@@ -678,14 +678,6 @@ body.nav-open { overflow: hidden; }
               <option value="all">All words</option>
             </select>
           </div>
-          <div class="form-group">
-            <label>Session size</label>
-            <select id="train-size">
-              <option value="10">10 words</option>
-              <option value="20" selected>20 words</option>
-              <option value="40">40 words</option>
-            </select>
-          </div>
         </div>
 
         <div class="train-modes">
@@ -1228,21 +1220,20 @@ function selectMode(el) {
 async function startSession() {
   const pool = document.getElementById('train-pool').value;
   const lang = document.getElementById('train-lang').value;
-  const size = parseInt(document.getElementById('train-size').value);
-  const langParam = lang ? `&language=${lang}` : '';
-  
+  const langParam = lang ? `?language=${lang}` : '';
+
   let words;
-  if (pool === 'due') words = await api(`/api/vocab/due?limit=${size}${langParam}`);
-  else if (pool === 'weak') words = await api(`/api/vocab/weak?limit=${size}${langParam}`);
+  if (pool === 'due') words = await api(`/api/vocab/due${langParam}`);
+  else if (pool === 'weak') words = await api(`/api/vocab/weak${langParam}`);
   else words = await api(`/api/vocab${lang ? '?language='+lang : ''}`);
 
   if (!words.length) {
     toast('No words available! Import some vocabulary first.', 'error');
     return;
   }
-  
+
   // Shuffle
-  sessionWords = words.sort(() => Math.random() - 0.5).slice(0, size);
+  sessionWords = words.sort(() => Math.random() - 0.5);
   sessionIdx = 0;
   sessionCorrect = 0;
   sessionWrong = 0;
@@ -1260,9 +1251,9 @@ function showCurrentWord() {
     return;
   }
   const word = sessionWords[sessionIdx];
-  const progress = (sessionIdx / sessionWords.length) * 100;
+  const progress = ((sessionIdx + 1) / sessionWords.length) * 100;
   document.getElementById('session-bar').style.width = progress + '%';
-  document.getElementById('session-counter').textContent = `${sessionIdx + 1} / ${sessionWords.length}`;
+  document.getElementById('session-counter').textContent = `${sessionIdx + 1} / ${sessionWords.length} words`;
 
   // Hide all modes
   ['flashcard','multiple','typing'].forEach(m => document.getElementById('mode-'+m).style.display = 'none');

@@ -283,7 +283,7 @@ def list_languages():
 
 
 @app.get("/api/vocab/due")
-def get_due_vocab(language: Optional[str] = None, limit: int = 50):
+def get_due_vocab(language: Optional[str] = None):
     today = _today()
     with _get_db() as conn:
         if language:
@@ -291,22 +291,22 @@ def get_due_vocab(language: Optional[str] = None, limit: int = 50):
                 "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.interval_days, s.due_date, s.last_seen "
                 "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
                 "WHERE v.language_to = ? AND (s.due_date IS NULL OR s.due_date <= ?) "
-                "ORDER BY s.due_date LIMIT ?",
-                (language, today, limit)
+                "ORDER BY s.due_date",
+                (language, today)
             ).fetchall()
         else:
             rows = conn.execute(
                 "SELECT v.*, s.correct_count, s.wrong_count, s.ease_factor, s.interval_days, s.due_date, s.last_seen "
                 "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
                 "WHERE s.due_date IS NULL OR s.due_date <= ? "
-                "ORDER BY s.due_date LIMIT ?",
-                (today, limit)
+                "ORDER BY s.due_date",
+                (today,)
             ).fetchall()
     return [dict(r) for r in rows]
 
 
 @app.get("/api/vocab/weak")
-def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
+def get_weak_vocab(language: Optional[str] = None):
     with _get_db() as conn:
         if language:
             rows = conn.execute(
@@ -314,8 +314,8 @@ def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
                 "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
                 "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
                 "WHERE v.language_to = ? AND (s.correct_count + s.wrong_count) > 0 "
-                "ORDER BY accuracy ASC, s.wrong_count DESC LIMIT ?",
-                (language, limit)
+                "ORDER BY accuracy ASC, s.wrong_count DESC",
+                (language,)
             ).fetchall()
         else:
             rows = conn.execute(
@@ -323,8 +323,7 @@ def get_weak_vocab(language: Optional[str] = None, limit: int = 50):
                 "CAST(s.correct_count AS REAL) / (s.correct_count + s.wrong_count) AS accuracy "
                 "FROM vocabulary v LEFT JOIN stats s ON v.id = s.vocab_id "
                 "WHERE (s.correct_count + s.wrong_count) > 0 "
-                "ORDER BY accuracy ASC, s.wrong_count DESC LIMIT ?",
-                (limit,)
+                "ORDER BY accuracy ASC, s.wrong_count DESC"
             ).fetchall()
     return [dict(r) for r in rows]
 
